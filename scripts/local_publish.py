@@ -18,8 +18,6 @@ GIT_PATH = (
     or str(Path.home() / ".cache" / "codex-runtimes" / "codex-primary-runtime" / "dependencies" / "native" / "git" / "cmd" / "git.exe")
 )
 
-from scripts.publish_static import main as build_static_dashboard
-
 
 def run_git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -36,10 +34,10 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
     )
-    result = build_static_dashboard()
-    if not result or result.get("status") != "success":
-        logging.info("No GitHub Pages update required: %s", result)
-        return 0
+    completed = subprocess.run([sys.executable, str(ROOT / "scripts" / "run_formal_screen.py")], cwd=ROOT)
+    if completed.returncode:
+        logging.error("Formal screen failed; no phone result will be published.")
+        return completed.returncode
 
     run_git("add", "site/data")
     if not run_git("diff", "--cached", "--quiet", check=False).returncode:

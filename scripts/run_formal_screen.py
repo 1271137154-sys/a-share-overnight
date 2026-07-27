@@ -119,6 +119,10 @@ def main(market_date: str | None = None):
     SITE = ROOT / "site" / "data"; SITE.mkdir(parents=True, exist_ok=True)
     (SITE / f"{market_date}.json").write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
     (SITE / "formal-latest.json").write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
+    manifest_path = SITE / "manifest.json"
+    existing = json.loads(manifest_path.read_text(encoding="utf-8")).get("dates", []) if manifest_path.exists() else []
+    dates = [market_date] + [item for item in existing if item != market_date]
+    manifest_path.write_text(json.dumps({"dates": dates[:90], "latest": market_date}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({**metadata,"counts":payload["strategy_counts"],"union":len(selected),"multi":sum(len(x["strategy_ids"])>1 for x in selected)}, ensure_ascii=False))
 
 
