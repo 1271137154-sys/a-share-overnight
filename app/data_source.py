@@ -56,7 +56,39 @@ class AkshareDataSource(MarketDataSource):
                 last_error = exc
                 logger.warning("AkShare request %s/%s failed: %s", attempt, self.retries, exc)
                 if attempt < self.retries: time.sleep(attempt)
-        raise RuntimeError("无法获取公开行情数据，请稍后重试。") from last_error
+        # Eastmoney occasionally refuses automated connections.  Sina + Tencent
+        # are independent AkShare endpoints and together provide the same fields
+        # needed by the daily (after-close) strategies.
+        try:
+            logger.warning("Eastmoney unavailable; using Sina/Tencent fallback.")
+            frame = self._fetch_spot_fallback()
+            self._spot_cache = (time.time(), frame.copy())
+            return frame
+        except Exception as fallback_error:
+            raise RuntimeError("无法获取公开行情数据，请稍后重试。") from fallback_error
+
+    def _fetch_spot_fallback(self) -> pd.DataFrame:
+        """Combine Sina price fields with Tencent turnover and volume-ratio data."""
+        sina = ak.stock_zh_a_spot().rename(columns=RENAME)
+        tencent = ak.stock_zh_a_spot_tx().copy()
+        sina["code"] = sina["code"].astype(str).str[-6:].str.zfill(6)
+        tencent["code"] = tencent["code"].astype(str).str[-6:].str.zfill(6)
+        auxiliary = tencent[["code", "hsl", "lb"]].rename(
+            columns={"hsl": "turnover", "lb": "volume_ratio"}
+        )
+        frame = sina.drop(columns=["turnover", "volume_ratio"], errors="ignore").merge(
+            auxiliary, on="code", how="left"
+        )
+        required = set(RENAME.values()) - {"open"}
+        missing = required - set(frame.columns)
+        if missing:
+            raise ValueError(f"Fallback returned missing fields: {sorted(missing)}")
+        for column in ("close", "pct_change", "high", "low", "volume", "amount", "turnover", "volume_ratio"):
+            frame[column] = pd.to_numeric(frame[column], errors="coerce")
+        return frame[
+            frame["code"].str.startswith(("60", "00"))
+            & ~frame["name"].astype(str).str.contains("ST", na=False)
+        ].dropna(subset=["close", "high", "low", "turnover", "volume_ratio"]).copy()
 
     def fetch_history(self, code: str, days: int = 35) -> pd.DataFrame:
         symbol = code[2:] if code.startswith(("sh", "sz")) else code
@@ -64,5 +96,17 @@ class AkshareDataSource(MarketDataSource):
             df = ak.stock_zh_a_hist(symbol=symbol, period="daily", adjust="qfq")
             return df.tail(days).rename(columns={"日期":"date", "开盘":"open", "收盘":"close", "最高":"high", "最低":"low", "成交量":"volume", "成交额":"amount", "换手率":"turnover"})
         except Exception as exc:
-            logger.warning("History for %s unavailable: %s", code, exc)
-            return pd.DataFrame()
+            logger.warning("Eastmoney history for %s unavailable: %s", code, exc)
+            try:
+                prefix = "sh" if str(symbol).startswith("6") else "sz"
+                df = ak.stock_zh_a_hist_tx(
+                    symbol=f"{prefix}{str(symbol).zfill(6)}",
+                    start_date="20260101",
+                    end_date="20500101",
+                    adjust="qfq",
+                    timeout=self.timeout_seconds,
+                )
+                return df.tail(days)
+            except Exception as fallback_error:
+                logger.warning("Tencent history for %s unavailable: %s", code, fallback_error)
+                return pd.DataFrame()

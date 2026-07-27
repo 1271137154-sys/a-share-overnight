@@ -20,8 +20,16 @@ def run_daily_screen(db: Database, source: MarketDataSource, strategies: list[di
     try:
         frame = source.fetch_spot()
         db.save_snapshot(date_key, frame, source.source_name)
-        histories = {code: source.fetch_history(code) for code in frame["code"].head(200)}
-        records = run_strategies(frame[frame["code"].isin(histories)], histories, strategies)
+        # Every configured strategy requires a 2%–7.5% daily gain and at least
+        # RMB 300m turnover.  Filter cheaply before requesting historical bars
+        # from a public source, rather than fetching arbitrary market rows.
+        research_pool = frame[
+            frame["pct_change"].between(2, 7.5)
+            & (frame["amount"] >= 300_000_000)
+        ].sort_values("amount", ascending=False).head(200)
+        histories = {code: source.fetch_history(code) for code in research_pool["code"]}
+        usable_codes = [code for code, history in histories.items() if not history.empty]
+        records = run_strategies(research_pool[research_pool["code"].isin(usable_codes)], histories, strategies)
         db.save_selections(date_key, records)
         db.finish_task(TASK_NAME, date_key, "success", "筛选结果已保存", len(records))
         logger.info("Daily screen completed for %s: %s records", date_key, len(records))
