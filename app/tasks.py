@@ -3,7 +3,7 @@ import logging
 from datetime import date
 from .database import Database
 from .data_source import MarketDataSource
-from .strategies import run_strategies
+from .strategies import analyze_universe
 
 logger = logging.getLogger(__name__)
 TASK_NAME = "daily_screen"
@@ -29,8 +29,11 @@ def run_daily_screen(db: Database, source: MarketDataSource, strategies: list[di
         ].sort_values("amount", ascending=False).head(200)
         histories = {code: source.fetch_history(code) for code in research_pool["code"]}
         usable_codes = [code for code, history in histories.items() if not history.empty]
-        records = run_strategies(research_pool[research_pool["code"].isin(usable_codes)], histories, strategies)
+        records, rejected = analyze_universe(
+            research_pool[research_pool["code"].isin(usable_codes)], histories, strategies
+        )
         db.save_selections(date_key, records)
+        db.save_rejections(date_key, rejected)
         db.finish_task(TASK_NAME, date_key, "success", "筛选结果已保存", len(records))
         logger.info("Daily screen completed for %s: %s records", date_key, len(records))
         return {"status": "success", "trade_date": date_key, "records": len(records), "message": "筛选结果已保存"}

@@ -19,7 +19,7 @@ class Settings:
     admin_username: str = os.getenv("ADMIN_USERNAME", "admin")
     admin_password_hash: str = os.getenv("ADMIN_PASSWORD_HASH", "")
     enable_scheduler: bool = os.getenv("ENABLE_SCHEDULER", "true").lower() == "true"
-    scheduler_hour: int = int(os.getenv("SCHEDULER_HOUR", "15"))
-    scheduler_minute: int = int(os.getenv("SCHEDULER_MINUTE", "10"))
+    scheduler_hour: int = int(os.getenv("SCHEDULER_HOUR", "14"))
+    scheduler_minute: int = int(os.getenv("SCHEDULER_MINUTE", "40"))
 
 settings = Settings()
