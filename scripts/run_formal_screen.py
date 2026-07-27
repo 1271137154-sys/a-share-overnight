@@ -101,6 +101,17 @@ def fetch_history(source, code: str):
 def composite(history: pd.DataFrame, spot: pd.Series, market_date: str):
     """Use the fresh same-day snapshot as the final unadjusted daily bar."""
     frame = history.copy()
+    # Tencent and Eastmoney history endpoints may report volume in different
+    # units (lots versus shares).  Amount / close / volume exposes the unit:
+    # around 100 means historical volume is in lots, so normalize to shares
+    # before comparing it with the fresh spot snapshot.
+    if {"amount", "close", "volume"}.issubset(frame.columns):
+        amounts = pd.to_numeric(frame["amount"], errors="coerce")
+        closes = pd.to_numeric(frame["close"], errors="coerce")
+        volumes = pd.to_numeric(frame["volume"], errors="coerce")
+        ratio = (amounts / (closes * volumes)).replace([float("inf"), -float("inf")], pd.NA).dropna().median()
+        if ratio is not None and 50 <= float(ratio) <= 150:
+            frame["volume"] = volumes * 100
     frame["date"] = frame["date"].astype(str).str[:10]
     row = {"date": market_date, "open": spot.get("open"), "high": spot.get("high"), "low": spot.get("low"), "close": spot.get("close"), "volume": spot.get("volume"), "amount": spot.get("amount"), "turnover": spot.get("turnover"), "pct_change": spot.get("pct_change")}
     frame = frame[frame["date"] != market_date]
