@@ -1,6 +1,8 @@
 """Idempotent daily screening task shared by the scheduler and administrator button."""
 import logging
 from datetime import date
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import pandas as pd
 from .database import Database
 from .data_source import MarketDataSource
 from .strategies import analyze_universe
@@ -27,7 +29,18 @@ def run_daily_screen(db: Database, source: MarketDataSource, strategies: list[di
             frame["pct_change"].between(2, 7.5)
             & (frame["amount"] >= 300_000_000)
         ].sort_values("amount", ascending=False).head(200)
-        histories = {code: source.fetch_history(code) for code in research_pool["code"]}
+        histories = {}
+        # Public historical endpoints are network-bound.  A small worker pool
+        # keeps the 14:40 task timely without changing any screening rule.
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            futures = {executor.submit(source.fetch_history, code): code for code in research_pool["code"]}
+            for future in as_completed(futures):
+                code = futures[future]
+                try:
+                    histories[code] = future.result()
+                except Exception as exc:
+                    logger.warning("History task for %s failed: %s", code, exc)
+                    histories[code] = pd.DataFrame()
         usable_codes = [code for code, history in histories.items() if not history.empty]
         records, rejected = analyze_universe(
             research_pool[research_pool["code"].isin(usable_codes)], histories, strategies
