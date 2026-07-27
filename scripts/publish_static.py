@@ -30,7 +30,7 @@ def build_payload(db: Database, trade_date: str, strategies: list[dict]) -> dict
     records = db.load_selections(trade_date)
     for item in records:
         item["strategy_names"] = [names[key] for key in item["strategy_ids"]]
-    return {"trade_date": trade_date, "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"), "records": jsonable(records), "rejections": jsonable(db.load_rejections(trade_date, limit=500))}
+    return {"trade_date": trade_date, "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"), "records": jsonable(records), "strategy_counts": db.strategy_counts(trade_date), "rejections": jsonable(db.load_rejections(trade_date, limit=500))}
 
 def main():
     db = Database(settings.database_path)

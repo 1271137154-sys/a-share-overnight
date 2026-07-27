@@ -47,3 +47,34 @@ def test_rejection_explains_distance_from_ma5():
     matches, rejected = analyze_universe(universe, {"600001": history()}, strategies)
     assert not matches
     assert "距离5日线" in rejected[0]["reason"]
+
+def test_each_strategy_matches_independently_not_as_an_intersection():
+    universe = pd.DataFrame([
+        spot(code="600001", pct_change=4.5).to_dict(),
+        spot(code="600002", pct_change=2.5).to_dict(),
+        spot(code="600003", pct_change=6.0).to_dict(),
+    ])
+    strategies = [
+        {"id": "strong_close_momentum", "rules": {"pct_change_min": 4, "pct_change_max": 5}},
+        {"id": "recent_limit_up_trend", "rules": {"pct_change_min": 2, "pct_change_max": 3}},
+        {"id": "limit_up_reacceleration", "rules": {"pct_change_min": 5.5, "pct_change_max": 6.5}},
+    ]
+    histories = {row["code"]: history() for _, row in universe.iterrows()}
+    matches, rejected = analyze_universe(universe, histories, strategies)
+    assert not rejected
+    assert {item["code"]: item["strategy_ids"] for item in matches} == {
+        "600001": ["strong_close_momentum"],
+        "600002": ["recent_limit_up_trend"],
+        "600003": ["limit_up_reacceleration"],
+    }
+
+def test_strategy_matches_are_saved_separately(tmp_path):
+    db = Database(tmp_path / "selector.db")
+    records = [
+        {"code": "600001", "strategy_ids": ["strong_close_momentum"]},
+        {"code": "600002", "strategy_ids": ["recent_limit_up_trend", "limit_up_reacceleration"]},
+    ]
+    db.save_strategy_matches("2026-07-27", records)
+    assert db.strategy_counts("2026-07-27") == {
+        "strong_close_momentum": 1, "recent_limit_up_trend": 1, "limit_up_reacceleration": 1,
+    }

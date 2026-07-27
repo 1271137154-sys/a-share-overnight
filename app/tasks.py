@@ -46,6 +46,7 @@ def run_daily_screen(db: Database, source: MarketDataSource, strategies: list[di
             research_pool[research_pool["code"].isin(usable_codes)], histories, strategies
         )
         db.save_selections(date_key, records)
+        db.save_strategy_matches(date_key, records)
         db.save_rejections(date_key, rejected)
         db.finish_task(TASK_NAME, date_key, "success", "筛选结果已保存", len(records))
         logger.info("Daily screen completed for %s: %s records", date_key, len(records))

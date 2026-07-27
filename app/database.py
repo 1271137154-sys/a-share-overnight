@@ -24,6 +24,10 @@ class Database:
                 strategy_ids TEXT NOT NULL, metrics TEXT NOT NULL, failures TEXT NOT NULL,
                 PRIMARY KEY (trade_date, code)
             )""")
+            conn.execute("""CREATE TABLE IF NOT EXISTS strategy_matches (
+                trade_date TEXT NOT NULL, strategy_id TEXT NOT NULL, code TEXT NOT NULL,
+                PRIMARY KEY (trade_date, strategy_id, code)
+            )""")
             conn.execute("""CREATE TABLE IF NOT EXISTS next_day_performance (
                 selection_date TEXT NOT NULL, code TEXT NOT NULL, measured_date TEXT NOT NULL,
                 open_return REAL, high_return REAL, low_return REAL, close_return REAL,
@@ -64,6 +68,25 @@ class Database:
         with self.connect() as conn:
             rows = conn.execute("SELECT code,name,strategy_ids,metrics,failures FROM selections WHERE trade_date=? ORDER BY name", (trade_date,)).fetchall()
         return [{"code": r[0], "name": r[1], "strategy_ids": json.loads(r[2]), "metrics": json.loads(r[3]), "failures": json.loads(r[4])} for r in rows]
+
+    def save_strategy_matches(self, trade_date: str, records: list[dict]):
+        """Persist each strategy independently; a stock may produce several rows."""
+        rows = [
+            (trade_date, strategy_id, record["code"])
+            for record in records
+            for strategy_id in record["strategy_ids"]
+        ]
+        with self.connect() as conn:
+            conn.execute("DELETE FROM strategy_matches WHERE trade_date=?", (trade_date,))
+            conn.executemany("INSERT INTO strategy_matches VALUES (?, ?, ?)", rows)
+
+    def strategy_counts(self, trade_date: str) -> dict[str, int]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT strategy_id, COUNT(*) FROM strategy_matches WHERE trade_date=? GROUP BY strategy_id",
+                (trade_date,),
+            ).fetchall()
+        return {strategy_id: count for strategy_id, count in rows}
 
     def save_rejections(self, trade_date: str, records: list[dict]):
         with self.connect() as conn:
