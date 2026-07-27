@@ -1,13 +1,13 @@
 {
   "status": "running",
-  "success": 1100,
+  "success": 1200,
   "total": 3044,
-  "coverage": 0.36136662286465177,
+  "coverage": 0.39421813403416556,
   "failed": 0,
-  "current_code": "603207",
-  "updated_at": "2026-07-27T19:10:53+08:00",
-  "rate_per_minute": 2275.3970248908095,
-  "estimated_remaining_minutes": 0.8543563952727272,
+  "current_code": "603335",
+  "updated_at": "2026-07-27T19:10:56+08:00",
+  "rate_per_minute": 2268.9531327561954,
+  "estimated_remaining_minutes": 0.8127096031111112,
   "failed_codes": [],
   "failed_details": {}
 }
