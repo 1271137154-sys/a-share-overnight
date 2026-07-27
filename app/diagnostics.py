@@ -71,13 +71,20 @@ def metrics_for(row: pd.Series, history: pd.DataFrame, trade_date: str) -> tuple
     ma5 = ((sum(closes.tail(4)) + close) / 5) if close is not None and len(closes) >= 4 and closes.tail(4).notna().all() else None
     previous_ma5 = closes.tail(5).mean() if len(closes) >= 5 and closes.tail(5).notna().all() else None
     ma10 = ((sum(closes.tail(9)) + close) / 10) if close is not None and len(closes) >= 9 and closes.tail(9).notna().all() else None
+    previous_ma10 = closes.tail(10).mean() if len(closes) >= 10 and closes.tail(10).notna().all() else None
+    ma20 = ((sum(closes.tail(19)) + close) / 20) if close is not None and len(closes) >= 19 and closes.tail(19).notna().all() else None
+    previous_ma20 = closes.tail(20).mean() if len(closes) >= 20 and closes.tail(20).notna().all() else None
     prior_volume_ma5 = volumes.tail(5).mean() if len(volumes) >= 5 and volumes.tail(5).notna().all() else None
     limit_days, limits, st_limit = _limit_up_days(history, trade_date)
     values = {
         "close": close, "high": high, "low": low, "volume": volume,
         "amount": _number(row.get("amount")), "turnover": _number(row.get("turnover")),
         "volume_ratio": _number(row.get("volume_ratio")), "pct_change": _number(row.get("pct_change")),
-        "ma5": ma5, "ma10": ma10, "ma5_slope": (ma5 - previous_ma5) if ma5 is not None and previous_ma5 is not None else None,
+        "ma5": ma5, "ma10": ma10, "ma20": ma20,
+        "ma5_slope": (ma5 - previous_ma5) if ma5 is not None and previous_ma5 is not None else None,
+        "ma10_slope": (ma10 - previous_ma10) if ma10 is not None and previous_ma10 is not None else None,
+        "ma20_slope": (ma20 - previous_ma20) if ma20 is not None and previous_ma20 is not None else None,
+        "ma5_distance": ((close / ma5) - 1) * 100 if close is not None and ma5 not in (None, 0) else None,
         "close_high_ratio": (close / high) if close is not None and high not in (None, 0) else None,
         "return_5d": (close / closes.iloc[-5] - 1) * 100 if close is not None and len(closes) >= 5 and _number(closes.iloc[-5]) else None,
         "return_10d": (close / closes.iloc[-10] - 1) * 100 if close is not None and len(closes) >= 10 and _number(closes.iloc[-10]) else None,

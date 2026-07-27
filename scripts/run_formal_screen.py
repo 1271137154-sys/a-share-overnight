@@ -107,13 +107,126 @@ def composite(history: pd.DataFrame, spot: pd.Series, market_date: str):
     return pd.concat([frame, pd.DataFrame([row])], ignore_index=True).sort_values("date").tail(81)
 
 
-def main(market_date: str | None = None):
+def _as_float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def score_candidate(metrics: dict, history: pd.DataFrame, market_date: str, strategy_ids: list[str]):
+    """Second-layer review score.  This never changes a strategy match.
+
+    It only ranks stocks that already passed at least one of the three fixed
+    wide-screen strategies.  Missing board-strength and intraday data stay
+    explicitly pending for manual review.
+    """
+    score, plus, minus = 60, [], []
+    amount = _as_float(metrics.get("amount")) or 0
+    ma5_distance = _as_float(metrics.get("ma5_distance"))
+    close_high = _as_float(metrics.get("close_high_ratio"))
+    ma10_slope = _as_float(metrics.get("ma10_slope"))
+    ma20_slope = _as_float(metrics.get("ma20_slope"))
+    details = {
+        "amount": amount, "ma5_distance": ma5_distance,
+        "ma10_trend": "up" if ma10_slope is not None and ma10_slope > 0 else "not_up_or_missing",
+        "ma20_trend": "up" if ma20_slope is not None and ma20_slope > 0 else "not_up_or_missing",
+        "close_high_ratio": close_high,
+    }
+    if amount >= 500_000_000:
+        score += 10; plus.append("成交额≥5亿元，流动性较好")
+    elif amount >= 300_000_000:
+        score += 5; plus.append("成交额≥3亿元")
+    else:
+        minus.append("成交额低于3亿元")
+    if ma5_distance is not None:
+        if 0 < ma5_distance <= 5:
+            score += 8; plus.append("收盘贴近MA5（偏离≤5%）")
+        elif ma5_distance <= 7:
+            score += 4; plus.append("收盘仍在MA5附近")
+        else:
+            score -= 8; minus.append("距离MA5偏离超过7%")
+    if ma10_slope is not None and ma10_slope > 0:
+        score += 5; plus.append("MA10向上")
+    if ma20_slope is not None and ma20_slope > 0:
+        score += 3; plus.append("MA20向上")
+    if close_high is not None:
+        if close_high >= .985:
+            score += 7; plus.append("收盘接近全天最高价")
+        elif close_high >= .98:
+            score += 4; plus.append("收盘强度良好")
+        else:
+            score -= 5; minus.append("收盘距离最高价偏远")
+
+    frame = history.copy()
+    frame["date"] = frame["date"].astype(str).str[:10]
+    for field in ("open", "high", "low", "close", "volume"):
+        frame[field] = pd.to_numeric(frame.get(field), errors="coerce")
+    frame = frame[frame["date"] <= market_date].sort_values("date")
+    limit_ups = metrics.get("limit_ups") or []
+    latest_limit_date = limit_ups[-1]["date"] if limit_ups else None
+    details["latest_limit_up_date"] = latest_limit_date
+    details["limit_up_days_ago"] = metrics.get("limit_up_days_ago")
+    max_drawdown = None
+    if latest_limit_date:
+        post = frame[frame["date"] >= latest_limit_date]
+        start = post.iloc[0] if not post.empty else None
+        start_close = _as_float(start.get("close")) if start is not None else None
+        low = _as_float(post["low"].min()) if not post.empty else None
+        if start_close not in (None, 0) and low is not None:
+            max_drawdown = (low / start_close - 1) * 100
+            if max_drawdown >= -5:
+                score += 5; plus.append("涨停后最大回撤≤5%")
+            elif max_drawdown >= -8:
+                score += 2; plus.append("涨停后回撤可控")
+            elif max_drawdown < -10:
+                score -= 6; minus.append("涨停后最大回撤超过10%")
+        days = metrics.get("limit_up_days_ago")
+        if days is not None and 2 <= days <= 5:
+            score += 5; plus.append("涨停时间窗口较合适")
+        elif days is not None and 6 <= days <= 10:
+            score += 3; plus.append("近期有有效涨停")
+    details["max_drawdown_after_limit_up"] = max_drawdown
+
+    post = frame[frame["date"] >= latest_limit_date] if latest_limit_date else frame.tail(10)
+    long_bear = False
+    reversals = 0
+    if len(post) >= 2:
+        vols = post["volume"].rolling(5, min_periods=1).mean().shift(1)
+        previous_close = post["close"].shift(1)
+        decline = post["close"] / previous_close - 1
+        long_bear = bool(((post["close"] < post["open"]) & (decline <= -.03) & (post["volume"] > vols * 1.2)).fillna(False).any())
+        high_range = (post["high"] - post["low"]).replace(0, pd.NA)
+        upper_shadow = (post["high"] - post[["open", "close"]].max(axis=1)) / high_range
+        reversals = int(((upper_shadow >= .35) & (post["close"] / post["high"] < .98)).fillna(False).sum())
+    details["volume_expansion_long_bear"] = long_bear
+    details["repeated_rally_pullbacks"] = reversals >= 2
+    if long_bear:
+        score -= 8; minus.append("出现放量长阴")
+    else:
+        score += 3; plus.append("未见放量长阴")
+    if reversals >= 2:
+        score -= 7; minus.append("连续冲高回落")
+    else:
+        score += 3; plus.append("未见连续冲高回落")
+    if len(strategy_ids) > 1:
+        score += 5; plus.append("多策略同时命中")
+    score = max(0, min(100, score))
+    category = "重点候选" if score >= 80 else "次级候选" if score >= 70 else "观察" if score >= 60 else "淘汰"
+    return {"score": score, "category": category, "plus": plus, "minus": minus,
+            "pending_manual": ["板块强度待人工确认", "尾盘分时待人工确认"], "details": details}
+
+
+def main(market_date: str | None = None, use_stored_snapshot: bool = False):
     market_date = market_date or date.today().isoformat()
     now = datetime.now().astimezone()
     if now.date().isoformat() != market_date or now.hour < 15:
         raise RuntimeError(f"{market_date}行情未确认收盘，正式筛选未生成。")
+    db = Database(settings.database_path)
     source = AkshareDataSource(settings.request_retries, settings.request_timeout_seconds)
-    spot = source.fetch_spot()
+    spot = db.load_snapshot(market_date) if use_stored_snapshot else source.fetch_spot()
+    if spot is None or spot.empty:
+        raise RuntimeError(f"{market_date}行情获取失败，今日正式筛选未生成。")
     fresh = spot[spot["code"].astype(str).str.zfill(6).str.startswith(("60", "00")) & ~spot["name"].astype(str).str.contains("ST", na=False)].copy()
     if fresh.empty:
         raise RuntimeError(f"{market_date}行情获取失败，今日正式筛选未生成。")
@@ -149,14 +262,27 @@ def main(market_date: str | None = None):
     for code, item in report["stocks"].items():
         ids = [sid for sid, checks in item.get("strategies", {}).items() if all(c["status"] == "pass" for c in checks)]
         if ids:
-            selected.append({"code": code, "name": item["name"], "strategy_ids": ids, "metrics": item["metrics"], "failures": {sid: [c["name"] for c in checks if c["status"] != "pass"] for sid, checks in item["strategies"].items()}})
+            review = score_candidate(item["metrics"], histories[code], market_date, ids)
+            selected.append({"code": code, "name": item["name"], "strategy_ids": ids, "metrics": item["metrics"],
+                             "score": review["score"], "score_category": review["category"], "score_detail": review,
+                             "failures": {sid: [c["name"] for c in checks if c["status"] != "pass"] for sid, checks in item["strategies"].items()}})
     build_id = hashlib.sha256(f"{market_date}:{now.isoformat()}:{len(selected)}".encode()).hexdigest()[:12]
-    metadata = {"build_id":build_id,"data_version":"formal-wide-v1","market_date":market_date,"snapshot_date":market_date,"historical_last_date":raw_last,"used_snapshot_composite":True,"final_calculation_date":market_date,"run_at":now.isoformat(timespec="seconds"),"coverage":coverage,"history_success":len(histories),"history_failed":len(failed),"failed_codes":failed,"formal":True}
-    db = Database(settings.database_path); db.save_snapshot(market_date, fresh, "fresh-full-market-snapshot")
+    metadata = {"build_id":build_id,"data_version":"formal-wide-v1","market_date":market_date,"snapshot_date":market_date,"snapshot_source":"stored_2026-07-27_fresh_snapshot" if use_stored_snapshot else "fresh_full_market_snapshot","historical_last_date":raw_last,"used_snapshot_composite":True,"final_calculation_date":market_date,"run_at":now.isoformat(timespec="seconds"),"coverage":coverage,"history_success":len(histories),"history_failed":len(failed),"failed_codes":failed,"formal":True}
+    if not use_stored_snapshot:
+        db.save_snapshot(market_date, fresh, "fresh-full-market-snapshot")
     db.save_selections(market_date, selected); db.save_strategy_matches(market_date, selected)
     names = {"strong_close_momentum":"策略1：强势收盘隔夜动量（宽筛）","recent_limit_up_trend":"策略2：近期涨停后的温和趋势（宽筛）","limit_up_reacceleration":"策略3：涨停后整理再转强（宽筛）"}
     for item in selected: item["strategy_names"] = [names[key] for key in item["strategy_ids"]]
-    payload = {**metadata,"records":jsonable(selected),"strategy_counts":db.strategy_counts(market_date),"rejections":[],"history_sources":sources}
+    selected.sort(key=lambda item: (-item["score"], item["code"]))
+    score_counts = {
+        "key_candidates": sum(item["score"] >= 80 for item in selected),
+        "secondary_candidates": sum(70 <= item["score"] <= 79 for item in selected),
+        "watch": sum(60 <= item["score"] <= 69 for item in selected),
+        "eliminated": sum(item["score"] < 60 for item in selected),
+    }
+    payload = {**metadata,"records":jsonable(selected),"strategy_counts":db.strategy_counts(market_date),
+               "union_count":len(selected),"multi_strategy_count":sum(len(item["strategy_ids"]) > 1 for item in selected),
+               "score_counts":score_counts,"excluded_history_insufficient":failed,"rejections":[],"history_sources":sources}
     SITE.mkdir(parents=True, exist_ok=True)
     (SITE / f"{market_date}.json").write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
     (SITE / "formal-latest.json").write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
@@ -169,4 +295,4 @@ def main(market_date: str | None = None):
 
 
 if __name__ == "__main__":
-    main()
+    main(use_stored_snapshot="--stored-snapshot" in sys.argv)
