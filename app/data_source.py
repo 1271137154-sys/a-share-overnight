@@ -88,12 +88,12 @@ class AkshareDataSource(MarketDataSource):
             frame[column] = pd.to_numeric(frame[column], errors="coerce")
         return frame
 
-    def fetch_history(self, code: str, days: int = 35) -> pd.DataFrame:
+    def fetch_history(self, code: str, days: int = 80) -> pd.DataFrame:
         symbol = code[2:] if code.startswith(("sh", "sz")) else code
         if self._prefer_tencent_history:
             return self._fetch_tencent_history(symbol, code, days)
         try:
-            df = ak.stock_zh_a_hist(symbol=symbol, period="daily", adjust="qfq")
+            df = ak.stock_zh_a_hist(symbol=symbol, period="daily", adjust="")
             return df.tail(days).rename(columns={"日期":"date", "开盘":"open", "收盘":"close", "最高":"high", "最低":"low", "成交量":"volume", "成交额":"amount", "换手率":"turnover"})
         except Exception as exc:
             logger.warning("Eastmoney history for %s unavailable: %s", code, exc)
@@ -107,7 +107,7 @@ class AkshareDataSource(MarketDataSource):
                 symbol=f"{prefix}{str(symbol).zfill(6)}",
                 start_date="20260101",
                 end_date="20500101",
-                adjust="qfq",
+                    adjust="",
                 timeout=self.timeout_seconds,
             )
             return df.tail(days)
