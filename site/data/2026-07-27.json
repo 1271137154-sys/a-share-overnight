@@ -1,7 +1,8 @@
 {
   "trade_date": "2026-07-27",
-  "generated_at": "2026-07-27T15:48:39+08:00",
+  "generated_at": "2026-07-27T16:07:39+08:00",
   "records": [],
+  "strategy_counts": {},
   "rejections": [
     {
       "code": "002654",
