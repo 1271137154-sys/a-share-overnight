@@ -222,9 +222,10 @@ def score_candidate(metrics: dict, history: pd.DataFrame, market_date: str, stra
         score += 3; plus.append("未见连续冲高回落")
     if len(strategy_ids) > 1:
         score += 5; plus.append("多策略同时命中")
+    raw_score = score
     score = max(0, min(100, score))
     category = "重点候选" if score >= 80 else "次级候选" if score >= 70 else "观察" if score >= 60 else "淘汰"
-    return {"score": score, "category": category, "plus": plus, "minus": minus,
+    return {"score": score, "priority_score": raw_score, "category": category, "plus": plus, "minus": minus,
             "pending_manual": ["板块强度待人工确认", "尾盘分时待人工确认"], "details": details}
 
 
@@ -275,7 +276,7 @@ def main(market_date: str | None = None, use_stored_snapshot: bool = False):
         if ids:
             review = score_candidate(item["metrics"], histories[code], market_date, ids)
             selected.append({"code": code, "name": item["name"], "strategy_ids": ids, "metrics": item["metrics"],
-                             "score": review["score"], "score_category": review["category"], "score_detail": review,
+                             "score": review["score"], "priority_score": review["priority_score"], "score_category": review["category"], "score_detail": review,
                              "failures": {sid: [c["name"] for c in checks if c["status"] != "pass"] for sid, checks in item["strategies"].items()}})
     build_id = hashlib.sha256(f"{market_date}:{now.isoformat()}:{len(selected)}".encode()).hexdigest()[:12]
     metadata = {"build_id":build_id,"data_version":"formal-wide-v1","market_date":market_date,"snapshot_date":market_date,"snapshot_source":"stored_2026-07-27_fresh_snapshot" if use_stored_snapshot else "fresh_full_market_snapshot","historical_last_date":raw_last,"used_snapshot_composite":True,"final_calculation_date":market_date,"run_at":now.isoformat(timespec="seconds"),"coverage":coverage,"history_success":len(histories),"history_failed":len(failed),"failed_codes":failed,"formal":True}
@@ -284,7 +285,16 @@ def main(market_date: str | None = None, use_stored_snapshot: bool = False):
     db.save_selections(market_date, selected); db.save_strategy_matches(market_date, selected)
     names = {"strong_close_momentum":"策略1：强势收盘隔夜动量（宽筛）","recent_limit_up_trend":"策略2：近期涨停后的温和趋势（宽筛）","limit_up_reacceleration":"策略3：涨停后整理再转强（宽筛）"}
     for item in selected: item["strategy_names"] = [names[key] for key in item["strategy_ids"]]
-    selected.sort(key=lambda item: (-item["score"], item["code"]))
+    # The five-stock research shortlist must not be a code-order tie.  The
+    # formula match is unchanged; this only ranks already-qualified stocks.
+    selected.sort(key=lambda item: (
+        -item["priority_score"],
+        -len(item["strategy_ids"]),
+        -float(item["metrics"].get("amount") or 0),
+        -float(item["metrics"].get("close_high_ratio") or 0),
+        abs(float(item["metrics"].get("ma5_distance") or 999)),
+        item["code"],
+    ))
     score_counts = {
         "key_candidates": sum(item["score"] >= 80 for item in selected),
         "secondary_candidates": sum(70 <= item["score"] <= 79 for item in selected),
