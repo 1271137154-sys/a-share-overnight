@@ -56,7 +56,7 @@ def write_cache(code: str, frame: pd.DataFrame):
     frame.to_json(CACHE / f"{code}.json", orient="records", force_ascii=False)
 
 
-def write_progress(success, total, failed, current, started_at, status="running"):
+def write_progress(success, total, failed, current, started_at, status="running", failed_details=None):
     SITE.mkdir(parents=True, exist_ok=True)
     elapsed = max((datetime.now().astimezone() - started_at).total_seconds(), 1)
     rate = success / (elapsed / 60)
@@ -64,7 +64,7 @@ def write_progress(success, total, failed, current, started_at, status="running"
     payload = {"status": status, "success": success, "total": total, "coverage": success / total if total else 0,
                "failed": len(failed), "current_code": current, "updated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                "rate_per_minute": rate, "estimated_remaining_minutes": (remaining / rate) if rate else None,
-               "failed_codes": failed}
+               "failed_codes": failed, "failed_details": failed_details or {}}
     (SITE / "progress.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return payload
 
@@ -118,7 +118,7 @@ def main(market_date: str | None = None):
     if fresh.empty:
         raise RuntimeError(f"{market_date}行情获取失败，今日正式筛选未生成。")
     fresh["code"] = fresh["code"].astype(str).str.zfill(6)
-    histories, failed, sources = {}, [], {}
+    histories, failed, failed_details, sources = {}, [], {}, {}
     started_at = datetime.now().astimezone(); total = len(fresh); workers = 4
     remaining_codes = list(fresh["code"]); start = 0
     while start < total:
@@ -129,13 +129,13 @@ def main(market_date: str | None = None):
             for job in as_completed(jobs):
                 code = jobs[job]; history, origin = job.result()
                 if history is None:
-                    failed.append(code); batch_failures += 1
+                    failed.append(code); failed_details[code] = origin; batch_failures += 1
                 else:
                     histories[code] = composite(history, fresh.loc[fresh["code"] == code].iloc[0], market_date)
                     sources[code] = origin
         start += len(batch); processed = start
         if processed % 100 < len(batch) or processed == total:
-            write_progress(len(histories), total, failed, batch[-1], started_at)
+            write_progress(len(histories), total, failed, batch[-1], started_at, failed_details=failed_details)
             publish_progress()
         if batch_failures and workers > 1:
             workers -= 1
@@ -164,7 +164,7 @@ def main(market_date: str | None = None):
     existing = json.loads(manifest_path.read_text(encoding="utf-8")).get("dates", []) if manifest_path.exists() else []
     dates = [market_date] + [item for item in existing if item != market_date]
     manifest_path.write_text(json.dumps({"dates": dates[:90], "latest": market_date}, ensure_ascii=False, indent=2), encoding="utf-8")
-    write_progress(len(histories), total, failed, "", started_at, status="completed")
+    write_progress(len(histories), total, failed, "", started_at, status="completed", failed_details=failed_details)
     print(json.dumps({**metadata,"counts":payload["strategy_counts"],"union":len(selected),"multi":sum(len(x["strategy_ids"])>1 for x in selected)}, ensure_ascii=False))
 
 
