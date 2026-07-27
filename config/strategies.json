@@ -2,21 +2,56 @@
   "strategies": [
     {
       "id": "strong_close_momentum",
-      "name": "强势收盘隔夜动量",
-      "description": "收盘后日线初筛；用于观察强势收盘的隔夜惯性，不构成交易指令。",
-      "rules": {"pct_change_min": 4.0, "pct_change_max": 7.5, "turnover_min": 6.0, "turnover_max": 18.0, "volume_ratio_min": 1.3, "volume_ratio_max": 3.2, "amplitude_min": 4.0, "amplitude_max": 9.0, "ma5_slope_positive": true, "close_above_ma5": true, "ma5_distance_max": 7.0, "close_high_ratio_min": 0.988, "return_10d_max": 30.0, "amount_min": 300000000}
+      "name": "策略1：强势收盘隔夜动量（宽筛）",
+      "rules": {
+        "ma5_slope_positive": true,
+        "close_above_ma5": true,
+        "pct_change_min": 3.0,
+        "pct_change_max": 8.0,
+        "volume_ratio_min": 1.0,
+        "volume_ratio_max": 4.0,
+        "turnover_min": 3.0,
+        "turnover_max": 22.0,
+        "close_high_ratio_min": 0.97,
+        "return_10d_min": -15.0,
+        "return_10d_max": 40.0
+      }
     },
     {
       "id": "recent_limit_up_trend",
-      "name": "近期涨停后的温和趋势",
-      "description": "近期涨停后、均线向上的温和趋势初筛。",
-      "rules": {"ma5_above_ma10": true, "ma5_slope_positive": true, "ma10_slope_positive": true, "close_above_ma5": true, "ma5_distance_max": 5.0, "limit_up_days_min": 2, "limit_up_days_max": 5, "return_5d_min": 5.0, "return_5d_max": 20.0, "return_3d_min": -5.0, "return_3d_max": 13.0, "pct_change_min": 2.5, "pct_change_max": 6.0, "volume_ratio_min": 1.2, "volume_ratio_max": 3.0, "amplitude_min": 3.0, "amplitude_max": 8.0, "close_high_ratio_min": 0.98, "amount_min": 300000000}
+      "name": "策略2：近期涨停后的温和趋势（宽筛）",
+      "rules": {
+        "ma5_above_ma10": true,
+        "ma5_slope_positive": true,
+        "close_above_ma5": true,
+        "limit_up_days_min": 2,
+        "limit_up_days_max": 7,
+        "return_5d_min": 0.0,
+        "return_5d_max": 25.0,
+        "pct_change_min": 1.5,
+        "pct_change_max": 7.0,
+        "volume_ratio_min": 0.8,
+        "volume_ratio_max": 4.0,
+        "close_high_ratio_min": 0.97
+      }
     },
     {
       "id": "limit_up_reacceleration",
-      "name": "涨停后整理再转强",
-      "description": "近期涨停后，温和放量并接近高点收盘的初筛。",
-      "rules": {"ma5_above_ma10": true, "ma5_slope_positive": true, "close_above_ma5": true, "ma5_distance_max": 5.0, "limit_up_days_min": 3, "limit_up_days_max": 7, "pct_change_min": 2.0, "pct_change_max": 6.5, "volume_ma5_multiple_min": 1.1, "volume_ma5_multiple_max": 2.5, "turnover_min": 4.0, "turnover_max": 15.0, "close_high_ratio_min": 0.985, "amount_min": 300000000}
+      "name": "策略3：涨停后整理再转强（宽筛）",
+      "rules": {
+        "ma5_above_ma10": true,
+        "ma5_slope_positive": true,
+        "close_above_ma5": true,
+        "limit_up_days_min": 3,
+        "limit_up_days_max": 10,
+        "pct_change_min": 1.0,
+        "pct_change_max": 7.0,
+        "volume_ma5_multiple_min": 0.8,
+        "volume_ma5_multiple_max": 3.0,
+        "turnover_min": 2.0,
+        "turnover_max": 18.0,
+        "close_high_ratio_min": 0.97
+      }
     }
   ]
 }

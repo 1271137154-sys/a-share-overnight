@@ -26,7 +26,9 @@ def run_daily_screen(db: Database, source: MarketDataSource, strategies: list[di
         # RMB 300m turnover.  Filter cheaply before requesting historical bars
         # from a public source, rather than fetching arbitrary market rows.
         research_pool = frame[
-            frame["pct_change"].between(2, 7.5)
+            frame["code"].astype(str).str.zfill(6).str.startswith(("60", "00"))
+            & ~frame["name"].astype(str).str.contains("ST", na=False)
+            & frame["pct_change"].between(1, 8)
             & (frame["amount"] >= 300_000_000)
         ].sort_values("amount", ascending=False).head(200)
         histories = {}

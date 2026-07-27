@@ -50,7 +50,6 @@ class AkshareDataSource(MarketDataSource):
                 missing = required - set(frame.columns)
                 if missing: raise ValueError(f"AkShare returned missing fields: {sorted(missing)}")
                 frame["code"] = frame["code"].astype(str).str.zfill(6)
-                frame = frame[frame["code"].str.startswith(("60", "00")) & ~frame["name"].str.contains("ST", na=False)].copy()
                 self._spot_cache = (time.time(), frame.copy())
                 return frame
             except Exception as exc:
@@ -87,10 +86,7 @@ class AkshareDataSource(MarketDataSource):
             raise ValueError(f"Fallback returned missing fields: {sorted(missing)}")
         for column in ("close", "pct_change", "high", "low", "volume", "amount", "turnover", "volume_ratio"):
             frame[column] = pd.to_numeric(frame[column], errors="coerce")
-        return frame[
-            frame["code"].str.startswith(("60", "00"))
-            & ~frame["name"].astype(str).str.contains("ST", na=False)
-        ].dropna(subset=["close", "high", "low", "turnover", "volume_ratio"]).copy()
+        return frame
 
     def fetch_history(self, code: str, days: int = 35) -> pd.DataFrame:
         symbol = code[2:] if code.startswith(("sh", "sz")) else code
