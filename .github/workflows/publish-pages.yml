@@ -2,9 +2,10 @@ name: Publish free dashboard
 
 on:
   workflow_dispatch:
-  schedule:
-    # 15:10 Asia/Shanghai = 07:10 UTC; GitHub may delay scheduled workflows.
-    - cron: "10 7 * * 1-5"
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
 
 permissions:
   contents: write
@@ -23,17 +24,6 @@ jobs:
       DATABASE_PATH: data/stock_selector.db
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - run: python scripts/publish_static.py
-      - name: Save generated historical data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site/data
-          git diff --cached --quiet || (git commit -m "chore: update daily screening results" && git push)
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

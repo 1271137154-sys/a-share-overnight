@@ -132,3 +132,15 @@ SQLite 和轮转日志位于 `data/`、`logs/`，Compose 已将二者作为宿�
 - 管理员可在 `/status` 或首页点击“立即更新”。同一交易日任务已成功后，重复触发只会返回已有结果，不会重复请求或插入数据。
 
 部署多副本时只能启用一个调度器实例，否则会造成重复执行竞争；当前 SQLite 版本建议保持单副本运行。
+
+### 免费自动更新（电脑开机方案）
+
+GitHub Pages 只负责展示手机页面；每日数据由家里的 Windows 电脑在 15:10 拉取并推送。电脑需要保持开机、联网且不要进入睡眠。非交易日会自动跳过，同一天成功后不会重复拉取。
+
+安装完成后，运行：
+
+```powershell
+schtasks /Run /TN "AShareOvernightPublish"
+```
+
+可在 Windows 的“任务计划程序”中查看名称为 `AShareOvernightPublish` 的任务。运行成功后，手机打开：`https://1271137154-sys.github.io/a-share-overnight/`。GitHub Pages 通常需要约 1—3 分钟完成页面更新。

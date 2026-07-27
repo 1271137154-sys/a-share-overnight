@@ -37,6 +37,9 @@ def main():
     source = AkshareDataSource(settings.request_retries, settings.request_timeout_seconds)
     strategies = load_strategies(ROOT / "config" / "strategies.json")
     result = run_daily_screen(db, source, strategies)
+    if result["status"] != "success":
+        print(f"Static dashboard not updated: {result['message']}")
+        return result
     dates = db.dates()
     if not dates:
         raise RuntimeError(f"No saved screening data: {result['message']}")
@@ -51,6 +54,7 @@ def main():
     dates = [trade_date] + [item for item in existing if item != trade_date]
     manifest_path.write_text(json.dumps({"dates": dates[:90], "latest": trade_date}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Static dashboard built for {trade_date}: {len(payload['records'])} candidates")
+    return result
 
 if __name__ == "__main__":
     main()
