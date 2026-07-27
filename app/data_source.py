@@ -24,6 +24,7 @@ class AkshareDataSource(MarketDataSource):
         self.retries, self.timeout_seconds = retries, timeout_seconds
         self._spot_cache: tuple[float, pd.DataFrame] | None = None
         self._calendar_cache: tuple[float, set[str]] | None = None
+        self._prefer_tencent_history = False
 
     def is_trading_day(self, trade_date: date) -> bool:
         """Uses Sina's public A-share trade calendar; conservative False on failure."""
@@ -62,6 +63,7 @@ class AkshareDataSource(MarketDataSource):
         try:
             logger.warning("Eastmoney unavailable; using Sina/Tencent fallback.")
             frame = self._fetch_spot_fallback()
+            self._prefer_tencent_history = True
             self._spot_cache = (time.time(), frame.copy())
             return frame
         except Exception as fallback_error:
@@ -92,21 +94,27 @@ class AkshareDataSource(MarketDataSource):
 
     def fetch_history(self, code: str, days: int = 35) -> pd.DataFrame:
         symbol = code[2:] if code.startswith(("sh", "sz")) else code
+        if self._prefer_tencent_history:
+            return self._fetch_tencent_history(symbol, code, days)
         try:
             df = ak.stock_zh_a_hist(symbol=symbol, period="daily", adjust="qfq")
             return df.tail(days).rename(columns={"日期":"date", "开盘":"open", "收盘":"close", "最高":"high", "最低":"low", "成交量":"volume", "成交额":"amount", "换手率":"turnover"})
         except Exception as exc:
             logger.warning("Eastmoney history for %s unavailable: %s", code, exc)
-            try:
-                prefix = "sh" if str(symbol).startswith("6") else "sz"
-                df = ak.stock_zh_a_hist_tx(
-                    symbol=f"{prefix}{str(symbol).zfill(6)}",
-                    start_date="20260101",
-                    end_date="20500101",
-                    adjust="qfq",
-                    timeout=self.timeout_seconds,
-                )
-                return df.tail(days)
-            except Exception as fallback_error:
-                logger.warning("Tencent history for %s unavailable: %s", code, fallback_error)
-                return pd.DataFrame()
+            self._prefer_tencent_history = True
+            return self._fetch_tencent_history(symbol, code, days)
+
+    def _fetch_tencent_history(self, symbol: str, code: str, days: int) -> pd.DataFrame:
+        try:
+            prefix = "sh" if str(symbol).startswith("6") else "sz"
+            df = ak.stock_zh_a_hist_tx(
+                symbol=f"{prefix}{str(symbol).zfill(6)}",
+                start_date="20260101",
+                end_date="20500101",
+                adjust="qfq",
+                timeout=self.timeout_seconds,
+            )
+            return df.tail(days)
+        except Exception as fallback_error:
+            logger.warning("Tencent history for %s unavailable: %s", code, fallback_error)
+            return pd.DataFrame()
