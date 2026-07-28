@@ -86,7 +86,7 @@ def main(market_date: str | None = None, force: bool = False) -> None:
         "build_id": build_id, "data_version": "intraday-wide-v1", "market_date": market_date,
         "quote_time": now.isoformat(timespec="seconds"), "historical_last_date": raw_last,
         "used_snapshot_composite": True, "provisional": True, "formal": False,
-        "disclaimer": "14:30—14:40盘中临时筛选；价格、成交量、量比和换手率尚未收盘确认，15:10正式结果会重新校验。",
+        "disclaimer": "14:30开始的盘中临时筛选；价格、成交量、量比和换手率尚未收盘确认，15:05收盘后正式结果会重新校验。",
         "coverage": coverage, "history_success": len(histories), "history_failed": len(insufficient),
         "excluded_history_insufficient": insufficient, "strategy_counts": strategy_counts,
         "union_count": len(selected), "multi_strategy_count": sum(len(item["strategy_ids"]) > 1 for item in selected),
