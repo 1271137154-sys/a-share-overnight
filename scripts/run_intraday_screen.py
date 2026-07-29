@@ -63,21 +63,20 @@ def main(market_date: str | None = None, force: bool = False) -> None:
 
     complete_spot = fresh[fresh["code"].isin(histories)].copy()
     report = build_report(complete_spot, histories, market_date, source_updated_at=now.isoformat(timespec="seconds"))
+    board_strength = source.fetch_industry_strength()
     selected = []
     for code, item in report["stocks"].items():
         ids = [strategy_id for strategy_id, checks in item.get("strategies", {}).items() if all(check["status"] == "pass" for check in checks)]
         if not ids:
             continue
-        review = score_candidate(item["metrics"], histories[code], market_date, ids)
+        reviews = {strategy_id: score_candidate(item["metrics"], histories[code], market_date, strategy_id, board_strength.get(code)) for strategy_id in ids}
         selected.append({
             "code": code, "name": item["name"], "strategy_ids": ids,
             "strategy_names": [NAMES[strategy_id] for strategy_id in ids],
-            "metrics": item["metrics"], "score": review["score"],
-            "priority_score": review["priority_score"], "score_category": review["category"],
-            "score_detail": review,
+            "metrics": item["metrics"], "strategy_reviews": reviews,
             "failures": {strategy_id: [check["name"] for check in checks if check["status"] != "pass"] for strategy_id, checks in item["strategies"].items()},
         })
-    selected.sort(key=lambda item: (-item["priority_score"], -len(item["strategy_ids"]), -float(item["metrics"].get("amount") or 0), item["code"]))
+    selected.sort(key=lambda item: item["code"])
 
     raw_last = max((frame["date"].astype(str).str[:10].iloc[-2] for frame in histories.values()), default=None)
     strategy_counts = {strategy_id: sum(strategy_id in item["strategy_ids"] for item in selected) for strategy_id in NAMES}
@@ -90,6 +89,7 @@ def main(market_date: str | None = None, force: bool = False) -> None:
         "coverage": coverage, "history_success": len(histories), "history_failed": len(insufficient),
         "excluded_history_insufficient": insufficient, "strategy_counts": strategy_counts,
         "union_count": len(selected), "multi_strategy_count": sum(len(item["strategy_ids"]) > 1 for item in selected),
+        "board_strength_source": "Sina industry board spot via AkShare",
         "records": jsonable(selected),
     }
     SITE.mkdir(parents=True, exist_ok=True)

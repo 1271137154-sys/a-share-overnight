@@ -125,7 +125,7 @@ def _as_float(value):
         return None
 
 
-def score_candidate(metrics: dict, history: pd.DataFrame, market_date: str, strategy_ids: list[str]):
+def score_candidate(metrics: dict, history: pd.DataFrame, market_date: str, strategy_id: str, board: dict | None = None):
     """Second-layer review score.  This never changes a strategy match.
 
     It only ranks stocks that already passed at least one of the three fixed
@@ -220,13 +220,47 @@ def score_candidate(metrics: dict, history: pd.DataFrame, market_date: str, stra
         score -= 7; minus.append("连续冲高回落")
     else:
         score += 3; plus.append("未见连续冲高回落")
-    if len(strategy_ids) > 1:
-        score += 5; plus.append("多策略同时命中")
+    board = board or {}
+    board_pct = _as_float(board.get("board_pct_change"))
+    details["board_name"] = board.get("board_name")
+    details["board_pct_change"] = board_pct
+    details["board_company_count"] = _as_float(board.get("board_company_count"))
+    if board_pct is None:
+        minus.append("板块强度数据未取得，不能作为隔夜执行依据")
+    elif board_pct >= 2:
+        score += 8; plus.append(f"所属行业板块当日上涨 {board_pct:.2f}%")
+    elif board_pct >= 0:
+        score += 2; plus.append(f"所属行业板块维持红盘（{board_pct:.2f}%）")
+    else:
+        score -= 8; minus.append(f"所属行业板块走弱（{board_pct:.2f}%）")
+
+    # Each strategy has a different next-day premium source.  These are
+    # strategy-specific ranking adjustments, never a cross-strategy bonus.
+    pct = _as_float(metrics.get("pct_change"))
+    volume_ratio = _as_float(metrics.get("volume_ratio"))
+    volume_multiple = _as_float(metrics.get("volume_ma5_multiple"))
+    if strategy_id == "strong_close_momentum":
+        if volume_ratio is not None and 1.2 <= volume_ratio <= 2.8:
+            score += 5; plus.append("策略1：量比适中，盘中增量资金较健康")
+        elif volume_ratio is not None and volume_ratio > 3.2:
+            score -= 5; minus.append("策略1：量比过高，次日兑现压力增加")
+        if pct is not None and pct >= 7:
+            score -= 4; minus.append("策略1：当日涨幅接近上限，隔夜预期偏满")
+    elif strategy_id == "recent_limit_up_trend":
+        if details.get("limit_up_days_ago") is not None and 2 <= details["limit_up_days_ago"] <= 4:
+            score += 4; plus.append("策略2：涨停后处于较短的趋势延续窗口")
+        if _as_float(metrics.get("return_5d")) is not None and _as_float(metrics.get("return_5d")) > 18:
+            score -= 5; minus.append("策略2：近5日累计涨幅偏高，趋势续强可能转为兑现")
+    elif strategy_id == "limit_up_reacceleration":
+        if volume_multiple is not None and 1.0 <= volume_multiple <= 1.8:
+            score += 5; plus.append("策略3：再转强日成交量温和放大")
+        elif volume_multiple is not None and volume_multiple > 2.5:
+            score -= 5; minus.append("策略3：再转强日放量过猛，需防高位分歧")
     raw_score = score
     score = max(0, min(100, score))
-    category = "重点候选" if score >= 80 else "次级候选" if score >= 70 else "观察" if score >= 60 else "淘汰"
+    category = "隔夜候选" if score >= 80 and board_pct is not None and board_pct >= 0 else "观察" if score >= 65 else "回避"
     return {"score": score, "priority_score": raw_score, "category": category, "plus": plus, "minus": minus,
-            "pending_manual": ["板块强度待人工确认", "尾盘分时待人工确认"], "details": details}
+            "pending_manual": ["尾盘分时结构需确认", "次日竞价强弱需确认"], "details": details}
 
 
 def main(market_date: str | None = None, use_stored_snapshot: bool = False):
@@ -270,13 +304,14 @@ def main(market_date: str | None = None, use_stored_snapshot: bool = False):
     if coverage < .95:
         raise RuntimeError(f"历史数据覆盖率 {coverage:.2%} 低于95%，今日正式筛选未生成。失败代码：{','.join(failed[:50])}")
     report = build_report(fresh, histories, market_date, source_updated_at=now.isoformat(timespec="seconds"))
+    board_strength = source.fetch_industry_strength()
     selected = []
     for code, item in report["stocks"].items():
         ids = [sid for sid, checks in item.get("strategies", {}).items() if all(c["status"] == "pass" for c in checks)]
         if ids:
-            review = score_candidate(item["metrics"], histories[code], market_date, ids)
+            reviews = {sid: score_candidate(item["metrics"], histories[code], market_date, sid, board_strength.get(code)) for sid in ids}
             selected.append({"code": code, "name": item["name"], "strategy_ids": ids, "metrics": item["metrics"],
-                             "score": review["score"], "priority_score": review["priority_score"], "score_category": review["category"], "score_detail": review,
+                             "strategy_reviews": reviews,
                              "failures": {sid: [c["name"] for c in checks if c["status"] != "pass"] for sid, checks in item["strategies"].items()}})
     build_id = hashlib.sha256(f"{market_date}:{now.isoformat()}:{len(selected)}".encode()).hexdigest()[:12]
     metadata = {"build_id":build_id,"data_version":"formal-wide-v1","market_date":market_date,"snapshot_date":market_date,"snapshot_source":"stored_2026-07-27_fresh_snapshot" if use_stored_snapshot else "fresh_full_market_snapshot","historical_last_date":raw_last,"used_snapshot_composite":True,"final_calculation_date":market_date,"run_at":now.isoformat(timespec="seconds"),"coverage":coverage,"history_success":len(histories),"history_failed":len(failed),"failed_codes":failed,"formal":True}
@@ -285,25 +320,16 @@ def main(market_date: str | None = None, use_stored_snapshot: bool = False):
     db.save_selections(market_date, selected); db.save_strategy_matches(market_date, selected)
     names = {"strong_close_momentum":"策略1：强势收盘隔夜动量（宽筛）","recent_limit_up_trend":"策略2：近期涨停后的温和趋势（宽筛）","limit_up_reacceleration":"策略3：涨停后整理再转强（宽筛）"}
     for item in selected: item["strategy_names"] = [names[key] for key in item["strategy_ids"]]
-    # The five-stock research shortlist must not be a code-order tie.  The
-    # formula match is unchanged; this only ranks already-qualified stocks.
-    selected.sort(key=lambda item: (
-        -item["priority_score"],
-        -len(item["strategy_ids"]),
-        -float(item["metrics"].get("amount") or 0),
-        -float(item["metrics"].get("close_high_ratio") or 0),
-        abs(float(item["metrics"].get("ma5_distance") or 999)),
-        item["code"],
-    ))
-    score_counts = {
-        "key_candidates": sum(item["score"] >= 80 for item in selected),
-        "secondary_candidates": sum(70 <= item["score"] <= 79 for item in selected),
-        "watch": sum(60 <= item["score"] <= 69 for item in selected),
-        "eliminated": sum(item["score"] < 60 for item in selected),
-    }
+    # A union is only a de-duplicated browsing list.  It never changes a
+    # stock's rank or decision; each strategy is ranked independently in UI.
+    selected.sort(key=lambda item: item["code"])
+    score_counts = {sid: {"overnight_candidate": sum(review["category"] == "隔夜候选" for item in selected for key, review in item["strategy_reviews"].items() if key == sid),
+                          "observe": sum(review["category"] == "观察" for item in selected for key, review in item["strategy_reviews"].items() if key == sid),
+                          "avoid": sum(review["category"] == "回避" for item in selected for key, review in item["strategy_reviews"].items() if key == sid)}
+                    for sid in names}
     payload = {**metadata,"records":jsonable(selected),"strategy_counts":db.strategy_counts(market_date),
                "union_count":len(selected),"multi_strategy_count":sum(len(item["strategy_ids"]) > 1 for item in selected),
-               "score_counts":score_counts,"excluded_history_insufficient":failed,"rejections":[],"history_sources":sources}
+               "score_counts":score_counts,"board_strength_source":"Sina industry board spot via AkShare","excluded_history_insufficient":failed,"rejections":[],"history_sources":sources}
     SITE.mkdir(parents=True, exist_ok=True)
     (SITE / f"{market_date}.json").write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
     (SITE / "formal-latest.json").write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")

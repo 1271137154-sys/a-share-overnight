@@ -39,6 +39,10 @@ def main() -> int:
         logging.error("Formal screen failed; no phone result will be published.")
         return completed.returncode
 
+    profiles = subprocess.run([sys.executable, str(ROOT / "scripts" / "enrich_company_profiles.py")], cwd=ROOT)
+    if profiles.returncode:
+        logging.warning("Company-profile enrichment failed; screening results will still publish.")
+
     run_git("add", "site/data")
     if not run_git("diff", "--cached", "--quiet", check=False).returncode:
         logging.info("Screening output has not changed; no publish needed.")

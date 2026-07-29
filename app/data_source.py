@@ -88,6 +88,40 @@ class AkshareDataSource(MarketDataSource):
             frame[column] = pd.to_numeric(frame[column], errors="coerce")
         return frame
 
+    def fetch_industry_strength(self) -> dict[str, dict]:
+        """Return same-day Sina industry-board metrics keyed by six-digit code.
+
+        Unlike a vague concept label, this is a real-time industry-board quote.
+        Failures deliberately return an empty mapping so callers can mark the
+        board gate as unconfirmed rather than treating it as a pass.
+        """
+        last_error = None
+        for attempt in range(1, self.retries + 1):
+            try:
+                frame = ak.stock_sector_spot("行业")
+                required = {"板块", "涨跌幅", "公司家数", "股票代码"}
+                if not required.issubset(frame.columns):
+                    raise ValueError("industry-board response missing required columns")
+                frame = frame.copy()
+                frame["code"] = frame["股票代码"].astype(str).str[-6:].str.zfill(6)
+                frame["board_pct_change"] = pd.to_numeric(frame["涨跌幅"], errors="coerce")
+                frame["board_company_count"] = pd.to_numeric(frame["公司家数"], errors="coerce")
+                return {
+                    row["code"]: {
+                        "board_name": row.get("板块"),
+                        "board_pct_change": row.get("board_pct_change"),
+                        "board_company_count": row.get("board_company_count"),
+                    }
+                    for _, row in frame.dropna(subset=["code", "board_pct_change"]).iterrows()
+                }
+            except Exception as exc:
+                last_error = exc
+                logger.warning("Industry-board request %s/%s failed: %s", attempt, self.retries, exc)
+                if attempt < self.retries:
+                    time.sleep(attempt)
+        logger.error("Industry-board strength unavailable: %s", last_error)
+        return {}
+
     def fetch_history(self, code: str, days: int = 80) -> pd.DataFrame:
         symbol = code[2:] if code.startswith(("sh", "sz")) else code
         if self._prefer_tencent_history:
