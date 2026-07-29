@@ -89,30 +89,38 @@ class AkshareDataSource(MarketDataSource):
         return frame
 
     def fetch_industry_strength(self) -> dict[str, dict]:
-        """Return same-day Sina industry-board metrics keyed by six-digit code.
+        """Return same-day Sina industry-board metrics keyed by board name.
 
-        Unlike a vague concept label, this is a real-time industry-board quote.
-        Failures deliberately return an empty mapping so callers can mark the
-        board gate as unconfirmed rather than treating it as a pass.
+        The endpoint returns one representative stock per *industry board*,
+        not every component.  Therefore using its stock-code column as a
+        membership map was wrong.  Callers must match the returned board name
+        against an independently sourced company-industry classification.
         """
+        # Keep field names as Unicode escapes.  The project is edited on
+        # Windows through multiple tools, and literal Chinese column names
+        # were previously saved as mojibake, silently returning an empty map.
+        industry = "\u884c\u4e1a"
+        board_col = "\u677f\u5757"
+        pct_col = "\u6da8\u8dcc\u5e45"
+        count_col = "\u516c\u53f8\u5bb6\u6570"
+        code_col = "\u80a1\u7968\u4ee3\u7801"
         last_error = None
         for attempt in range(1, self.retries + 1):
             try:
-                frame = ak.stock_sector_spot("行业")
-                required = {"板块", "涨跌幅", "公司家数", "股票代码"}
+                frame = ak.stock_sector_spot(industry)
+                required = {board_col, pct_col, count_col, code_col}
                 if not required.issubset(frame.columns):
-                    raise ValueError("industry-board response missing required columns")
+                    raise ValueError(f"industry-board response missing fields: {required - set(frame.columns)}")
                 frame = frame.copy()
-                frame["code"] = frame["股票代码"].astype(str).str[-6:].str.zfill(6)
-                frame["board_pct_change"] = pd.to_numeric(frame["涨跌幅"], errors="coerce")
-                frame["board_company_count"] = pd.to_numeric(frame["公司家数"], errors="coerce")
+                frame["board_pct_change"] = pd.to_numeric(frame[pct_col], errors="coerce")
+                frame["board_company_count"] = pd.to_numeric(frame[count_col], errors="coerce")
                 return {
-                    row["code"]: {
-                        "board_name": row.get("板块"),
+                    str(row[board_col]): {
+                        "board_name": row.get(board_col),
                         "board_pct_change": row.get("board_pct_change"),
                         "board_company_count": row.get("board_company_count"),
                     }
-                    for _, row in frame.dropna(subset=["code", "board_pct_change"]).iterrows()
+                    for _, row in frame.dropna(subset=[board_col, "board_pct_change"]).iterrows()
                 }
             except Exception as exc:
                 last_error = exc

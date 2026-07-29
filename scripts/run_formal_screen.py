@@ -56,6 +56,21 @@ def write_cache(code: str, frame: pd.DataFrame):
     frame.to_json(CACHE / f"{code}.json", orient="records", force_ascii=False)
 
 
+def load_company_profiles() -> dict:
+    """Read cached public company profiles for industry-board matching.
+
+    The profile industry is the bridge from a stock code to Sina's industry
+    board quote.  Missing profiles remain explicitly unconfirmed.
+    """
+    path = ROOT / "data" / "company_profiles.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
 def write_progress(success, total, failed, current, started_at, status="running", failed_details=None):
     SITE.mkdir(parents=True, exist_ok=True)
     elapsed = max((datetime.now().astimezone() - started_at).total_seconds(), 1)
@@ -305,11 +320,21 @@ def main(market_date: str | None = None, use_stored_snapshot: bool = False):
         raise RuntimeError(f"历史数据覆盖率 {coverage:.2%} 低于95%，今日正式筛选未生成。失败代码：{','.join(failed[:50])}")
     report = build_report(fresh, histories, market_date, source_updated_at=now.isoformat(timespec="seconds"))
     board_strength = source.fetch_industry_strength()
+    company_profiles = load_company_profiles()
     selected = []
     for code, item in report["stocks"].items():
         ids = [sid for sid, checks in item.get("strategies", {}).items() if all(c["status"] == "pass" for c in checks)]
         if ids:
-            reviews = {sid: score_candidate(item["metrics"], histories[code], market_date, sid, board_strength.get(code)) for sid in ids}
+            profile = company_profiles.get(code, {})
+            industry = profile.get("industry")
+            board = board_strength.get(industry) if industry else None
+            reviews = {
+                sid: score_candidate(item["metrics"], histories[code], market_date, sid, board)
+                for sid in ids
+            }
+            for review in reviews.values():
+                review["details"]["company_industry"] = industry
+                review["details"]["board_match_method"] = "CNINFO industry exact match" if board else "unavailable"
             selected.append({"code": code, "name": item["name"], "strategy_ids": ids, "metrics": item["metrics"],
                              "strategy_reviews": reviews,
                              "failures": {sid: [c["name"] for c in checks if c["status"] != "pass"] for sid, checks in item["strategies"].items()}})
@@ -329,7 +354,7 @@ def main(market_date: str | None = None, use_stored_snapshot: bool = False):
                     for sid in names}
     payload = {**metadata,"records":jsonable(selected),"strategy_counts":db.strategy_counts(market_date),
                "union_count":len(selected),"multi_strategy_count":sum(len(item["strategy_ids"]) > 1 for item in selected),
-               "score_counts":score_counts,"board_strength_source":"Sina industry board spot via AkShare","excluded_history_insufficient":failed,"rejections":[],"history_sources":sources}
+               "score_counts":score_counts,"board_strength_source":"Sina industry board spot matched to CNINFO company industry","excluded_history_insufficient":failed,"rejections":[],"history_sources":sources}
     SITE.mkdir(parents=True, exist_ok=True)
     (SITE / f"{market_date}.json").write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
     (SITE / "formal-latest.json").write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
