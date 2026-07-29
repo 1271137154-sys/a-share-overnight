@@ -1,13 +1,13 @@
 {
   "status": "running",
-  "success": 2993,
+  "success": 3092,
   "total": 3222,
-  "coverage": 0.9289261328367474,
-  "failed": 7,
-  "current_code": "600664",
-  "updated_at": "2026-07-29T15:08:31+08:00",
-  "rate_per_minute": 1335.165727724764,
-  "estimated_remaining_minutes": 0.16627149378549946,
+  "coverage": 0.9596523898199876,
+  "failed": 8,
+  "current_code": "600387",
+  "updated_at": "2026-07-29T15:09:01+08:00",
+  "rate_per_minute": 1126.4959156234643,
+  "estimated_remaining_minutes": 0.10830043705260889,
   "failed_codes": [
     "603407",
     "001365",
@@ -15,7 +15,8 @@
     "001237",
     "603435",
     "001399",
-    "001248"
+    "001248",
+    "603468"
   ],
   "failed_details": {
     "603407": "failed:insufficient_history",
@@ -24,6 +25,7 @@
     "001237": "failed:insufficient_history",
     "603435": "failed:insufficient_history",
     "001399": "failed:insufficient_history",
-    "001248": "failed:insufficient_history"
+    "001248": "failed:insufficient_history",
+    "603468": "failed:insufficient_history"
   }
 }
