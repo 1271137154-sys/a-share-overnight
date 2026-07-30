@@ -1,0 +1,82 @@
+name: Cloud market-day screening
+
+on:
+  schedule:
+    # UTC; 14:30 and 15:05 in China Standard Time, Monday-Friday.
+    - cron: "30 6 * * 1-5"
+    - cron: "5 7 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "intraday for 14:30, close for 15:05"
+        required: true
+        default: "intraday"
+        type: choice
+        options: [intraday, close]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: cloud-market-screen
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+      DATABASE_PATH: data/stock_selector.db
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Restore daily-history cache
+        id: history-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/history_cache
+          key: a-share-history-${{ github.run_id }}
+          restore-keys: a-share-history-
+      - name: Determine scheduled mode
+        id: mode
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 6 * * 1-5" ]; then
+            echo "value=intraday" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=close" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run A-share screen
+        run: python scripts/cloud_update.py --mode "${{ steps.mode.outputs.value }}"
+      - name: Save daily-history cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/history_cache
+          key: a-share-history-${{ github.run_id }}
+      - name: Commit result data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data data/company_profiles.json
+          if git diff --cached --quiet; then
+            echo "No result changes to commit."
+          else
+            git commit -m "chore: cloud market-day update"
+            git push origin HEAD:main
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

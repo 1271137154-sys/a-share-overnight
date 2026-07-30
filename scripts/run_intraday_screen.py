@@ -12,6 +12,7 @@ import json
 import sys
 from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -21,7 +22,9 @@ sys.path.insert(0, str(ROOT))
 from app.config import settings
 from app.data_source import AkshareDataSource
 from app.diagnostics import build_report
-from scripts.run_formal_screen import CACHE, SITE, composite, jsonable, read_cache, score_candidate
+from scripts.run_formal_screen import CACHE, SITE, composite, jsonable, read_cache, score_candidate, load_company_profiles
+
+CN_TZ = ZoneInfo("Asia/Shanghai")
 
 
 NAMES = {
@@ -33,7 +36,7 @@ NAMES = {
 
 def main(market_date: str | None = None, force: bool = False) -> None:
     market_date = market_date or date.today().isoformat()
-    now = datetime.now().astimezone()
+    now = datetime.now(CN_TZ)
     if not force and (now.date().isoformat() != market_date or not (14 <= now.hour < 15)):
         raise RuntimeError("盘中临时筛选只允许在交易日14:00至15:00运行。")
 
@@ -64,12 +67,21 @@ def main(market_date: str | None = None, force: bool = False) -> None:
     complete_spot = fresh[fresh["code"].isin(histories)].copy()
     report = build_report(complete_spot, histories, market_date, source_updated_at=now.isoformat(timespec="seconds"))
     board_strength = source.fetch_industry_strength()
+    company_profiles = load_company_profiles()
     selected = []
     for code, item in report["stocks"].items():
         ids = [strategy_id for strategy_id, checks in item.get("strategies", {}).items() if all(check["status"] == "pass" for check in checks)]
         if not ids:
             continue
-        reviews = {strategy_id: score_candidate(item["metrics"], histories[code], market_date, strategy_id, board_strength.get(code)) for strategy_id in ids}
+        industry = company_profiles.get(code, {}).get("industry")
+        board = board_strength.get(industry) if industry else None
+        reviews = {
+            strategy_id: score_candidate(item["metrics"], histories[code], market_date, strategy_id, board)
+            for strategy_id in ids
+        }
+        for review in reviews.values():
+            review["details"]["company_industry"] = industry
+            review["details"]["board_match_method"] = "CNINFO industry exact match" if board else "unavailable"
         selected.append({
             "code": code, "name": item["name"], "strategy_ids": ids,
             "strategy_names": [NAMES[strategy_id] for strategy_id in ids],
@@ -84,7 +96,7 @@ def main(market_date: str | None = None, force: bool = False) -> None:
     payload = {
         "build_id": build_id, "data_version": "intraday-wide-v1", "market_date": market_date,
         "quote_time": now.isoformat(timespec="seconds"), "historical_last_date": raw_last,
-        "used_snapshot_composite": True, "provisional": True, "formal": False,
+        "used_snapshot_composite": True, "provisional": False, "intraday": True, "published": True, "formal": False,
         "disclaimer": "14:30开始的盘中临时筛选；价格、成交量、量比和换手率尚未收盘确认，15:05收盘后正式结果会重新校验。",
         "coverage": coverage, "history_success": len(histories), "history_failed": len(insufficient),
         "excluded_history_insufficient": insufficient, "strategy_counts": strategy_counts,

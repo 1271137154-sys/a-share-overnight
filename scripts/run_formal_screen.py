@@ -15,10 +15,12 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
+CN_TZ = ZoneInfo("Asia/Shanghai")
 sys.path.insert(0, str(ROOT))
 
 from app.config import settings
@@ -280,7 +282,7 @@ def score_candidate(metrics: dict, history: pd.DataFrame, market_date: str, stra
 
 def main(market_date: str | None = None, use_stored_snapshot: bool = False):
     market_date = market_date or date.today().isoformat()
-    now = datetime.now().astimezone()
+    now = datetime.now(CN_TZ)
     if now.date().isoformat() != market_date or now.hour < 15:
         raise RuntimeError(f"{market_date}行情未确认收盘，正式筛选未生成。")
     db = Database(settings.database_path)
