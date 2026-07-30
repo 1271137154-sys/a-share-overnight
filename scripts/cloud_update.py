@@ -4,8 +4,9 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -21,6 +22,14 @@ def main() -> int:
     source = AkshareDataSource(settings.request_retries, settings.request_timeout_seconds)
     if not source.is_trading_day(date.today()):
         print("Not an A-share trading day; skipped.")
+        return 0
+
+    now = datetime.now(ZoneInfo("Asia/Shanghai"))
+    if args.mode == "intraday" and not (14 <= now.hour < 15):
+        print("Outside the 14:00-15:00 China-time intraday window; skipped.")
+        return 0
+    if args.mode == "close" and now.hour < 15:
+        print("Before China-market close; skipped.")
         return 0
 
     if args.mode == "intraday":
