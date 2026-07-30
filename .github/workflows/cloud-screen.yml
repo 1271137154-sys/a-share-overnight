@@ -8,11 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "intraday for 14:30, close for 15:05"
+        description: "intraday for 14:30, close for 15:05, warm for first-time cache setup"
         required: true
         default: "intraday"
         type: choice
-        options: [intraday, close]
+        options: [intraday, close, warm]
 
 permissions:
   contents: write

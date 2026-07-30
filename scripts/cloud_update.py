@@ -17,8 +17,12 @@ from app.data_source import AkshareDataSource
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("intraday", "close"), required=True)
+    parser.add_argument("--mode", choices=("intraday", "close", "warm"), required=True)
     args = parser.parse_args()
+    if args.mode == "warm":
+        result = subprocess.run([sys.executable, str(ROOT / "scripts" / "warm_history_cache.py")], cwd=ROOT)
+        return result.returncode
+
     source = AkshareDataSource(settings.request_retries, settings.request_timeout_seconds)
     if not source.is_trading_day(date.today()):
         print("Not an A-share trading day; skipped.")
