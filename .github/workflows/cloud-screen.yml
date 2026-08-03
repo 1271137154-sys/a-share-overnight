@@ -1,10 +1,9 @@
 name: Cloud market-day screening
 
 on:
-  schedule:
-    # UTC; 14:30 and 15:05 in China Standard Time, Monday-Friday.
-    - cron: "30 6 * * 1-5"
-    - cron: "5 7 * * 1-5"
+  # Cron-job.org dispatches this workflow at the required China-market times.
+  # GitHub's own scheduled trigger is intentionally disabled because its
+  # execution latency is not reliable enough for the 14:30 screen.
   workflow_dispatch:
     inputs:
       mode:
@@ -44,17 +43,11 @@ jobs:
           path: data/history_cache
           key: a-share-history-${{ github.run_id }}
           restore-keys: a-share-history-
-      - name: Determine scheduled mode
+      - name: Determine requested mode
         id: mode
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "30 6 * * 1-5" ]; then
-            echo "value=intraday" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=close" >> "$GITHUB_OUTPUT"
-          fi
+          echo "value=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
       - name: Run A-share screen
         run: python scripts/cloud_update.py --mode "${{ steps.mode.outputs.value }}"
       - name: Save daily-history cache
