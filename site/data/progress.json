@@ -1,19 +1,21 @@
 {
   "status": "running",
-  "success": 498,
+  "success": 597,
   "total": 3222,
-  "coverage": 0.15456238361266295,
-  "failed": 2,
-  "current_code": "001333",
-  "updated_at": "2026-08-05T15:06:45+08:00",
-  "rate_per_minute": 975.0458741462475,
-  "estimated_remaining_minutes": 2.7916635228915663,
+  "coverage": 0.18528864059590316,
+  "failed": 3,
+  "current_code": "002828",
+  "updated_at": "2026-08-05T15:06:56+08:00",
+  "rate_per_minute": 851.4708064724048,
+  "estimated_remaining_minutes": 3.0793774490787267,
   "failed_codes": [
     "603435",
-    "001399"
+    "001399",
+    "001248"
   ],
   "failed_details": {
     "603435": "failed:insufficient_history",
-    "001399": "failed:insufficient_history"
+    "001399": "failed:insufficient_history",
+    "001248": "failed:insufficient_history"
   }
 }
