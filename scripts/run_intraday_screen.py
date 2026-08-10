@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT))
 from app.config import settings
 from app.data_source import AkshareDataSource
 from app.diagnostics import build_report
-from scripts.run_formal_screen import CACHE, SITE, composite, jsonable, read_cache, score_candidate, load_company_profiles
+from scripts.run_formal_screen import CACHE, SITE, composite, jsonable, read_cache, score_candidate, load_company_profiles, choose_final_candidates
 
 CN_TZ = ZoneInfo("Asia/Shanghai")
 
@@ -89,12 +89,13 @@ def main(market_date: str | None = None, force: bool = False) -> None:
             "failures": {strategy_id: [check["name"] for check in checks if check["status"] != "pass"] for strategy_id, checks in item["strategies"].items()},
         })
     selected.sort(key=lambda item: item["code"])
+    final_candidates, strict_summary = choose_final_candidates(selected)
 
     raw_last = max((frame["date"].astype(str).str[:10].iloc[-2] for frame in histories.values()), default=None)
     strategy_counts = {strategy_id: sum(strategy_id in item["strategy_ids"] for item in selected) for strategy_id in NAMES}
     build_id = hashlib.sha256(f"intraday:{market_date}:{now.isoformat()}:{len(selected)}".encode()).hexdigest()[:12]
     payload = {
-        "build_id": build_id, "data_version": "intraday-wide-v1", "market_date": market_date,
+        "build_id": build_id, "data_version": "intraday-wide-v2-strict-final", "market_date": market_date,
         "quote_time": now.isoformat(timespec="seconds"), "historical_last_date": raw_last,
         "used_snapshot_composite": True, "provisional": False, "intraday": True, "published": True, "formal": False,
         "disclaimer": "14:30开始的盘中临时筛选；价格、成交量、量比和换手率尚未收盘确认，15:05收盘后正式结果会重新校验。",
@@ -102,6 +103,8 @@ def main(market_date: str | None = None, force: bool = False) -> None:
         "excluded_history_insufficient": insufficient, "strategy_counts": strategy_counts,
         "union_count": len(selected), "multi_strategy_count": sum(len(item["strategy_ids"]) > 1 for item in selected),
         "board_strength_source": "Sina industry board spot via AkShare",
+        "final_overnight_candidates": jsonable(final_candidates), "final_candidate_count": len(final_candidates),
+        "strict_summary": jsonable(strict_summary),
         "records": jsonable(selected),
     }
     SITE.mkdir(parents=True, exist_ok=True)
