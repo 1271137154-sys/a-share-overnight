@@ -13,7 +13,7 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -467,9 +467,10 @@ def update_monthly_test_performance(market_date: str, fresh: pd.DataFrame) -> di
                         "success_high_ge_1pct": high / base - 1 >= .01,
                     })
     entries.sort(key=lambda item: item["selection_date"], reverse=True)
-    # The page intentionally reports the most recent 30 actual test entries,
-    # rather than thirty calendar days (A-share markets are not open daily).
-    recent = entries[:30]
+    # One calendar month means the last 30 calendar days; only actual A-share
+    # trading-day picks appear in that window.
+    cutoff = (date.fromisoformat(market_date) - timedelta(days=30)).isoformat()
+    recent = [entry for entry in entries if entry["selection_date"] >= cutoff]
     total = len(recent)
     def rate(predicate):
         return round(sum(predicate(row) for row in recent) / total * 100, 1) if total else None
