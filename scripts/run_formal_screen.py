@@ -288,6 +288,7 @@ STRICT_RULES = {
     "strong_close_momentum": ["涨幅4%至7.5%", "量比1.2至3", "换手率4%至18%"],
     "recent_limit_up_trend": ["涨幅2.5%至6%", "量比1.2至3", "换手率4%至14%", "涨停距今2至5个交易日", "近5日涨幅不超过20%"],
     "limit_up_reacceleration": ["涨幅2%至6.5%", "成交量/前5日均量1.1至2.5", "换手率4%至15%", "涨停距今3至7个交易日"],
+    "board_resonance_tail_start": ["涨幅3.5%至6.5%", "量比1.3至3", "换手率5%至18%", "成交额不低于5亿元", "近5日涨幅不超过15%", "近10日涨幅不超过25%", "行业板块当日不低于+1.5%"],
 }
 
 
@@ -334,12 +335,22 @@ def strict_overnight_gate(metrics: dict, review: dict, strategy_id: str) -> tupl
         if volume_multiple is None or not (1.1 <= volume_multiple <= 2.5): failures.append("成交量倍数不在1.1至2.5")
         if turnover is None or not (4 <= turnover <= 15): failures.append("换手率不在4%至15%")
         if days is None or not (3 <= days <= 7): failures.append("涨停时间窗口不在3至7日")
+    elif strategy_id == "board_resonance_tail_start":
+        if amount is None or amount < 500_000_000: failures.append("成交额低于5亿元")
+        if close_high is None or close_high < .985: failures.append("收盘/最高低于98.5%")
+        if pct is None or not (3.5 <= pct <= 6.5): failures.append("涨幅不在3.5%至6.5%")
+        if volume_ratio is None or not (1.3 <= volume_ratio <= 3): failures.append("量比不在1.3至3")
+        if turnover is None or not (5 <= turnover <= 18): failures.append("换手率不在5%至18%")
+        if return_5d is None or not (-5 <= return_5d <= 15): failures.append("近5日涨幅不在-5%至15%")
+        return_10d = _as_float(metrics.get("return_10d"))
+        if return_10d is None or not (-10 <= return_10d <= 25): failures.append("近10日涨幅不在-10%至25%")
+        if board_pct is None or board_pct < 1.5: failures.append("所属行业板块当日未达到+1.5%")
     return not failures, failures
 
 
 def choose_final_candidates(selected: list[dict]) -> tuple[list[dict], dict]:
     """Return at most two daily ideas, at most one from each strategy."""
-    strategy_ids = ("strong_close_momentum", "recent_limit_up_trend", "limit_up_reacceleration")
+    strategy_ids = ("strong_close_momentum", "recent_limit_up_trend", "limit_up_reacceleration", "board_resonance_tail_start")
     per_strategy: list[dict] = []
     summary: dict[str, dict] = {}
     for strategy_id in strategy_ids:
@@ -373,6 +384,112 @@ def choose_final_candidates(selected: list[dict]) -> tuple[list[dict], dict]:
     for item in final:
         summary[item["strategy_id"]]["selected"] += 1
     return final, summary
+
+
+TEST_STRATEGY_IDS = ("strong_close_momentum", "recent_limit_up_trend", "limit_up_reacceleration")
+
+
+def choose_monthly_test_pool(selected: list[dict]) -> dict:
+    """Build a transparent one-month research sample without changing any rule.
+
+    Each of the three strategies is ranked independently and contributes up to
+    two rows.  The single daily test pick is the highest priority row among
+    those strategy-local leaders.  It is a measurement sample, never an order.
+    """
+    by_strategy: dict[str, list[dict]] = {}
+    leaders: list[dict] = []
+    for strategy_id in TEST_STRATEGY_IDS:
+        ranked = [item for item in selected if strategy_id in item.get("strategy_ids", [])]
+        ranked.sort(key=lambda item: item["strategy_reviews"][strategy_id].get("priority_score", 0), reverse=True)
+        rows = []
+        for rank, item in enumerate(ranked[:2], start=1):
+            review = item["strategy_reviews"][strategy_id]
+            row = {
+                "code": item["code"], "name": item["name"], "strategy_id": strategy_id,
+                "strategy_rank": rank, "score": review.get("score"),
+                "priority_score": review.get("priority_score"),
+                "selection_close": item.get("metrics", {}).get("close"),
+                "metrics": item.get("metrics", {}),
+                "why_selected": (review.get("plus") or [])[:3],
+                "risks": (review.get("minus") or [])[:3],
+            }
+            rows.append(row)
+            if rank == 1:
+                leaders.append(row)
+        by_strategy[strategy_id] = rows
+    leaders.sort(key=lambda row: (row.get("priority_score") or 0, row.get("score") or 0), reverse=True)
+    return {
+        "window_days": 30,
+        "strategy_top2": by_strategy,
+        "daily_test_pick": leaders[0] if leaders else None,
+        "daily_test_rule": "三套策略独立排序；每套最多保留2只，仅从各策略第1名中按固定优先分选1只作为统计样本。",
+        "no_pick_reason": None if leaders else "三套宽筛当日均无命中，未伪造测试股票。",
+    }
+
+
+def update_monthly_test_performance(market_date: str, fresh: pd.DataFrame) -> dict:
+    """Settle the prior formal daily test pick and retain a rolling 30-day log."""
+    path = SITE / "monthly-test-performance.json"
+    try:
+        stored = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except (OSError, json.JSONDecodeError):
+        stored = {}
+    entries = stored.get("entries", [])
+    known = {f"{x.get('selection_date')}:{x.get('code')}" for x in entries}
+    prior_files = []
+    for candidate_path in SITE.glob("????-??-??.json"):
+        try:
+            payload = json.loads(candidate_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if payload.get("formal") and payload.get("market_date", "") < market_date:
+            prior_files.append(payload)
+    if prior_files:
+        prior = max(prior_files, key=lambda payload: payload.get("market_date", ""))
+        picked = (prior.get("monthly_test") or {}).get("daily_test_pick")
+        spot_by_code = {str(row["code"]).zfill(6): row for _, row in fresh.iterrows()}
+        if picked:
+            code = str(picked.get("code", "")).zfill(6)
+            key, row = f"{prior.get('market_date')}:{code}", spot_by_code.get(code)
+            base = _as_float(picked.get("selection_close"))
+            if key not in known and row is not None and base not in (None, 0):
+                opening, high, low, close = (_as_float(row.get(name)) for name in ("open", "high", "low", "close"))
+                if None not in (opening, high, low, close):
+                    entries.append({
+                        "selection_date": prior["market_date"], "measured_date": market_date,
+                        "code": code, "name": picked.get("name"), "strategy_id": picked.get("strategy_id"),
+                        "selection_close": base,
+                        "open_return": round((opening / base - 1) * 100, 3),
+                        "high_return": round((high / base - 1) * 100, 3),
+                        "low_return": round((low / base - 1) * 100, 3),
+                        "close_return": round((close / base - 1) * 100, 3),
+                        "open_positive": opening > base,
+                        "success_high_ge_1pct": high / base - 1 >= .01,
+                    })
+    entries.sort(key=lambda item: item["selection_date"], reverse=True)
+    # The page intentionally reports the most recent 30 actual test entries,
+    # rather than thirty calendar days (A-share markets are not open daily).
+    recent = entries[:30]
+    total = len(recent)
+    def rate(predicate):
+        return round(sum(predicate(row) for row in recent) / total * 100, 1) if total else None
+    summary = {
+        "settled_trades": total,
+        "open_positive_rate": rate(lambda row: row["open_positive"]),
+        "high_ge_1pct_rate": rate(lambda row: row["success_high_ge_1pct"]),
+        "avg_open_return": round(sum(row["open_return"] for row in recent) / total, 3) if total else None,
+        "avg_high_return": round(sum(row["high_return"] for row in recent) / total, 3) if total else None,
+        "avg_close_return": round(sum(row["close_return"] for row in recent) / total, 3) if total else None,
+    }
+    output = {
+        "updated_for_market_date": market_date,
+        "window_days": 30,
+        "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
+        "entries": entries, "recent_entries": recent, "summary": summary,
+    }
+    SITE.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
+    return output
 
 
 def update_overnight_performance(market_date: str, fresh: pd.DataFrame) -> dict:
@@ -431,7 +548,7 @@ def update_overnight_performance(market_date: str, fresh: pd.DataFrame) -> dict:
                 "avg_high_return": round(sum(x["high_return"] for x in items) / total, 3) if total else None,
                 "avg_close_return": round(sum(x["close_return"] for x in items) / total, 3) if total else None}
     summary = {"all": aggregate(entries), "by_strategy": {}}
-    for strategy_id in ("strong_close_momentum", "recent_limit_up_trend", "limit_up_reacceleration"):
+    for strategy_id in ("strong_close_momentum", "recent_limit_up_trend", "limit_up_reacceleration", "board_resonance_tail_start"):
         summary["by_strategy"][strategy_id] = aggregate([x for x in entries if x["strategy_id"] == strategy_id])
     payload = {"updated_for_market_date": market_date, "definition": "成功率=次日最高价相对尾盘筛选收盘价达到或超过+1%，仅代表历史上存在理论可兑现窗口，不代表实际成交结果。", "entries": entries, "summary": summary}
     SITE.mkdir(parents=True, exist_ok=True)
@@ -504,7 +621,7 @@ def main(market_date: str | None = None, use_stored_snapshot: bool = False):
     if not use_stored_snapshot:
         db.save_snapshot(market_date, fresh, "fresh-full-market-snapshot")
     db.save_selections(market_date, selected); db.save_strategy_matches(market_date, selected)
-    names = {"strong_close_momentum":"策略1：强势收盘隔夜动量（宽筛）","recent_limit_up_trend":"策略2：近期涨停后的温和趋势（宽筛）","limit_up_reacceleration":"策略3：涨停后整理再转强（宽筛）"}
+    names = {"strong_close_momentum":"策略1：强势收盘隔夜动量（宽筛）","recent_limit_up_trend":"策略2：近期涨停后的温和趋势（宽筛）","limit_up_reacceleration":"策略3：涨停后整理再转强（宽筛）","board_resonance_tail_start":"策略4：板块共振尾盘启动（研究版）"}
     for item in selected: item["strategy_names"] = [names[key] for key in item["strategy_ids"]]
     # A union is only a de-duplicated browsing list.  It never changes a
     # stock's rank or decision; each strategy is ranked independently in UI.
@@ -513,6 +630,8 @@ def main(market_date: str | None = None, use_stored_snapshot: bool = False):
     # strategy-local hard gate is only for the small next-day-premium list.
     final_candidates, strict_summary = choose_final_candidates(selected)
     overnight_performance = update_overnight_performance(market_date, fresh)
+    monthly_test = choose_monthly_test_pool(selected)
+    monthly_test_performance = update_monthly_test_performance(market_date, fresh)
     score_counts = {sid: {"overnight_candidate": sum(review["category"] == "隔夜候选" for item in selected for key, review in item["strategy_reviews"].items() if key == sid),
                           "observe": sum(review["category"] == "观察" for item in selected for key, review in item["strategy_reviews"].items() if key == sid),
                           "avoid": sum(review["category"] == "回避" for item in selected for key, review in item["strategy_reviews"].items() if key == sid)}
@@ -521,7 +640,8 @@ def main(market_date: str | None = None, use_stored_snapshot: bool = False):
                "union_count":len(selected),"multi_strategy_count":sum(len(item["strategy_ids"]) > 1 for item in selected),
                "score_counts":score_counts,"board_strength_source":"Sina industry board spot matched to CNINFO company industry","excluded_history_insufficient":failed,"rejections":[],"history_sources":sources,
                "final_overnight_candidates":jsonable(final_candidates),"final_candidate_count":len(final_candidates),
-               "strict_summary":jsonable(strict_summary),"overnight_performance":jsonable(overnight_performance.get("summary", {}))}
+               "strict_summary":jsonable(strict_summary),"overnight_performance":jsonable(overnight_performance.get("summary", {})),
+               "monthly_test":jsonable(monthly_test),"monthly_test_performance":jsonable(monthly_test_performance.get("summary", {}))}
     SITE.mkdir(parents=True, exist_ok=True)
     (SITE / f"{market_date}.json").write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
     (SITE / "formal-latest.json").write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
