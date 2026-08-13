@@ -1,15 +1,45 @@
 {
-  "updated_for_market_date": "2026-08-12",
+  "updated_for_market_date": "2026-08-13",
   "window_days": 30,
   "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
-  "entries": [],
-  "recent_entries": [],
+  "entries": [
+    {
+      "selection_date": "2026-08-12",
+      "measured_date": "2026-08-13",
+      "code": "600733",
+      "name": "北汽蓝谷",
+      "strategy_id": "recent_limit_up_trend",
+      "selection_close": 5.57,
+      "open_return": -0.359,
+      "high_return": 1.436,
+      "low_return": -3.052,
+      "close_return": -3.052,
+      "open_positive": false,
+      "success_high_ge_1pct": true
+    }
+  ],
+  "recent_entries": [
+    {
+      "selection_date": "2026-08-12",
+      "measured_date": "2026-08-13",
+      "code": "600733",
+      "name": "北汽蓝谷",
+      "strategy_id": "recent_limit_up_trend",
+      "selection_close": 5.57,
+      "open_return": -0.359,
+      "high_return": 1.436,
+      "low_return": -3.052,
+      "close_return": -3.052,
+      "open_positive": false,
+      "success_high_ge_1pct": true
+    }
+  ],
   "summary": {
-    "settled_trades": 0,
-    "open_positive_rate": null,
-    "high_ge_1pct_rate": null,
-    "avg_open_return": null,
-    "avg_high_return": null,
-    "avg_close_return": null
+    "settled_trades": 1,
+    "open_positive_rate": 0.0,
+    "high_ge_1pct_rate": 100.0,
+    "avg_open_return": -0.359,
+    "avg_high_return": 1.436,
+    "avg_close_return": -3.052
   }
 }
