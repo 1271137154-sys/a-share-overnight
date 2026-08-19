@@ -1,8 +1,22 @@
 {
-  "updated_for_market_date": "2026-08-18",
+  "updated_for_market_date": "2026-08-19",
   "window_days": 30,
   "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
   "entries": [
+    {
+      "selection_date": "2026-08-18",
+      "measured_date": "2026-08-19",
+      "code": "600096",
+      "name": "云天化",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 30.71,
+      "open_return": -0.195,
+      "high_return": 0.782,
+      "low_return": -3.061,
+      "close_return": -2.996,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
     {
       "selection_date": "2026-08-17",
       "measured_date": "2026-08-18",
@@ -62,6 +76,20 @@
   ],
   "recent_entries": [
     {
+      "selection_date": "2026-08-18",
+      "measured_date": "2026-08-19",
+      "code": "600096",
+      "name": "云天化",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 30.71,
+      "open_return": -0.195,
+      "high_return": 0.782,
+      "low_return": -3.061,
+      "close_return": -2.996,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
+    {
       "selection_date": "2026-08-17",
       "measured_date": "2026-08-18",
       "code": "000049",
@@ -119,11 +147,11 @@
     }
   ],
   "summary": {
-    "settled_trades": 4,
-    "open_positive_rate": 50.0,
-    "high_ge_1pct_rate": 75.0,
-    "avg_open_return": 0.351,
-    "avg_high_return": 2.651,
-    "avg_close_return": -0.437
+    "settled_trades": 5,
+    "open_positive_rate": 40.0,
+    "high_ge_1pct_rate": 60.0,
+    "avg_open_return": 0.242,
+    "avg_high_return": 2.277,
+    "avg_close_return": -0.949
   }
 }
