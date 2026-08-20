@@ -1,8 +1,22 @@
 {
-  "updated_for_market_date": "2026-08-19",
+  "updated_for_market_date": "2026-08-20",
   "window_days": 30,
   "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
   "entries": [
+    {
+      "selection_date": "2026-08-19",
+      "measured_date": "2026-08-20",
+      "code": "600740",
+      "name": "山西焦化",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 3.74,
+      "open_return": -3.209,
+      "high_return": -0.535,
+      "low_return": -4.813,
+      "close_return": -4.278,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
     {
       "selection_date": "2026-08-18",
       "measured_date": "2026-08-19",
@@ -76,6 +90,20 @@
   ],
   "recent_entries": [
     {
+      "selection_date": "2026-08-19",
+      "measured_date": "2026-08-20",
+      "code": "600740",
+      "name": "山西焦化",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 3.74,
+      "open_return": -3.209,
+      "high_return": -0.535,
+      "low_return": -4.813,
+      "close_return": -4.278,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
+    {
       "selection_date": "2026-08-18",
       "measured_date": "2026-08-19",
       "code": "600096",
@@ -147,11 +175,11 @@
     }
   ],
   "summary": {
-    "settled_trades": 5,
-    "open_positive_rate": 40.0,
-    "high_ge_1pct_rate": 60.0,
-    "avg_open_return": 0.242,
-    "avg_high_return": 2.277,
-    "avg_close_return": -0.949
+    "settled_trades": 6,
+    "open_positive_rate": 33.3,
+    "high_ge_1pct_rate": 50.0,
+    "avg_open_return": -0.333,
+    "avg_high_return": 1.809,
+    "avg_close_return": -1.504
   }
 }
