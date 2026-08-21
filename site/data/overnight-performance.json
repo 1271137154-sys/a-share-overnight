@@ -1,7 +1,19 @@
 {
-  "updated_for_market_date": "2026-08-20",
+  "updated_for_market_date": "2026-08-21",
   "definition": "成功率=次日最高价相对尾盘筛选收盘价达到或超过+1%，仅代表历史上存在理论可兑现窗口，不代表实际成交结果。",
   "entries": [
+    {
+      "selection_date": "2026-08-20",
+      "measured_date": "2026-08-21",
+      "code": "002019",
+      "name": "亿帆医药",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 10.71,
+      "open_return": -1.214,
+      "high_return": -1.027,
+      "close_return": -5.415,
+      "success_high_ge_1pct": false
+    },
     {
       "selection_date": "2026-08-12",
       "measured_date": "2026-08-13",
@@ -17,21 +29,21 @@
   ],
   "summary": {
     "all": {
-      "trades": 1,
-      "open_positive_rate": 100.0,
-      "high_ge_1pct_rate": 100.0,
-      "avg_open_return": 0.431,
-      "avg_high_return": 4.02,
-      "avg_close_return": 0.359
+      "trades": 2,
+      "open_positive_rate": 50.0,
+      "high_ge_1pct_rate": 50.0,
+      "avg_open_return": -0.391,
+      "avg_high_return": 1.496,
+      "avg_close_return": -2.528
     },
     "by_strategy": {
       "strong_close_momentum": {
-        "trades": 1,
-        "open_positive_rate": 100.0,
-        "high_ge_1pct_rate": 100.0,
-        "avg_open_return": 0.431,
-        "avg_high_return": 4.02,
-        "avg_close_return": 0.359
+        "trades": 2,
+        "open_positive_rate": 50.0,
+        "high_ge_1pct_rate": 50.0,
+        "avg_open_return": -0.391,
+        "avg_high_return": 1.496,
+        "avg_close_return": -2.528
       },
       "recent_limit_up_trend": {
         "trades": 0,

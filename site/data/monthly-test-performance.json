@@ -1,8 +1,22 @@
 {
-  "updated_for_market_date": "2026-08-20",
+  "updated_for_market_date": "2026-08-21",
   "window_days": 30,
   "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
   "entries": [
+    {
+      "selection_date": "2026-08-20",
+      "measured_date": "2026-08-21",
+      "code": "600763",
+      "name": "通策医疗",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 36.54,
+      "open_return": -1.204,
+      "high_return": -1.149,
+      "low_return": -4.078,
+      "close_return": -3.202,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
     {
       "selection_date": "2026-08-19",
       "measured_date": "2026-08-20",
@@ -90,6 +104,20 @@
   ],
   "recent_entries": [
     {
+      "selection_date": "2026-08-20",
+      "measured_date": "2026-08-21",
+      "code": "600763",
+      "name": "通策医疗",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 36.54,
+      "open_return": -1.204,
+      "high_return": -1.149,
+      "low_return": -4.078,
+      "close_return": -3.202,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
+    {
       "selection_date": "2026-08-19",
       "measured_date": "2026-08-20",
       "code": "600740",
@@ -175,11 +203,11 @@
     }
   ],
   "summary": {
-    "settled_trades": 6,
-    "open_positive_rate": 33.3,
-    "high_ge_1pct_rate": 50.0,
-    "avg_open_return": -0.333,
-    "avg_high_return": 1.809,
-    "avg_close_return": -1.504
+    "settled_trades": 7,
+    "open_positive_rate": 28.6,
+    "high_ge_1pct_rate": 42.9,
+    "avg_open_return": -0.457,
+    "avg_high_return": 1.386,
+    "avg_close_return": -1.746
   }
 }
