@@ -1,8 +1,22 @@
 {
-  "updated_for_market_date": "2026-08-21",
+  "updated_for_market_date": "2026-08-24",
   "window_days": 30,
   "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
   "entries": [
+    {
+      "selection_date": "2026-08-21",
+      "measured_date": "2026-08-24",
+      "code": "000762",
+      "name": "西藏矿业",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 23.2,
+      "open_return": 1.724,
+      "high_return": 5.0,
+      "low_return": -0.043,
+      "close_return": 0.776,
+      "open_positive": true,
+      "success_high_ge_1pct": true
+    },
     {
       "selection_date": "2026-08-20",
       "measured_date": "2026-08-21",
@@ -104,6 +118,20 @@
   ],
   "recent_entries": [
     {
+      "selection_date": "2026-08-21",
+      "measured_date": "2026-08-24",
+      "code": "000762",
+      "name": "西藏矿业",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 23.2,
+      "open_return": 1.724,
+      "high_return": 5.0,
+      "low_return": -0.043,
+      "close_return": 0.776,
+      "open_positive": true,
+      "success_high_ge_1pct": true
+    },
+    {
       "selection_date": "2026-08-20",
       "measured_date": "2026-08-21",
       "code": "600763",
@@ -203,11 +231,11 @@
     }
   ],
   "summary": {
-    "settled_trades": 7,
-    "open_positive_rate": 28.6,
-    "high_ge_1pct_rate": 42.9,
-    "avg_open_return": -0.457,
-    "avg_high_return": 1.386,
-    "avg_close_return": -1.746
+    "settled_trades": 8,
+    "open_positive_rate": 37.5,
+    "high_ge_1pct_rate": 50.0,
+    "avg_open_return": -0.185,
+    "avg_high_return": 1.838,
+    "avg_close_return": -1.431
   }
 }
