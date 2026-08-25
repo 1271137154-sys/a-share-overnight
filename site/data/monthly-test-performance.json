@@ -1,8 +1,22 @@
 {
-  "updated_for_market_date": "2026-08-24",
+  "updated_for_market_date": "2026-08-25",
   "window_days": 30,
   "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
   "entries": [
+    {
+      "selection_date": "2026-08-24",
+      "measured_date": "2026-08-25",
+      "code": "601020",
+      "name": "华钰矿业",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 23.29,
+      "open_return": -1.245,
+      "high_return": -0.945,
+      "low_return": -8.115,
+      "close_return": -6.398,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
     {
       "selection_date": "2026-08-21",
       "measured_date": "2026-08-24",
@@ -118,6 +132,20 @@
   ],
   "recent_entries": [
     {
+      "selection_date": "2026-08-24",
+      "measured_date": "2026-08-25",
+      "code": "601020",
+      "name": "华钰矿业",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 23.29,
+      "open_return": -1.245,
+      "high_return": -0.945,
+      "low_return": -8.115,
+      "close_return": -6.398,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
+    {
       "selection_date": "2026-08-21",
       "measured_date": "2026-08-24",
       "code": "000762",
@@ -231,11 +259,11 @@
     }
   ],
   "summary": {
-    "settled_trades": 8,
-    "open_positive_rate": 37.5,
-    "high_ge_1pct_rate": 50.0,
-    "avg_open_return": -0.185,
-    "avg_high_return": 1.838,
-    "avg_close_return": -1.431
+    "settled_trades": 9,
+    "open_positive_rate": 33.3,
+    "high_ge_1pct_rate": 44.4,
+    "avg_open_return": -0.303,
+    "avg_high_return": 1.529,
+    "avg_close_return": -1.983
   }
 }
