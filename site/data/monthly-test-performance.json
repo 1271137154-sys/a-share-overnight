@@ -1,8 +1,22 @@
 {
-  "updated_for_market_date": "2026-08-25",
+  "updated_for_market_date": "2026-08-28",
   "window_days": 30,
   "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
   "entries": [
+    {
+      "selection_date": "2026-08-25",
+      "measured_date": "2026-08-28",
+      "code": "002607",
+      "name": "中公教育",
+      "strategy_id": "recent_limit_up_trend",
+      "selection_close": 2.05,
+      "open_return": 2.439,
+      "high_return": 3.415,
+      "low_return": 1.463,
+      "close_return": 2.439,
+      "open_positive": true,
+      "success_high_ge_1pct": true
+    },
     {
       "selection_date": "2026-08-24",
       "measured_date": "2026-08-25",
@@ -132,6 +146,20 @@
   ],
   "recent_entries": [
     {
+      "selection_date": "2026-08-25",
+      "measured_date": "2026-08-28",
+      "code": "002607",
+      "name": "中公教育",
+      "strategy_id": "recent_limit_up_trend",
+      "selection_close": 2.05,
+      "open_return": 2.439,
+      "high_return": 3.415,
+      "low_return": 1.463,
+      "close_return": 2.439,
+      "open_positive": true,
+      "success_high_ge_1pct": true
+    },
+    {
       "selection_date": "2026-08-24",
       "measured_date": "2026-08-25",
       "code": "601020",
@@ -259,11 +287,11 @@
     }
   ],
   "summary": {
-    "settled_trades": 9,
-    "open_positive_rate": 33.3,
-    "high_ge_1pct_rate": 44.4,
-    "avg_open_return": -0.303,
-    "avg_high_return": 1.529,
-    "avg_close_return": -1.983
+    "settled_trades": 10,
+    "open_positive_rate": 40.0,
+    "high_ge_1pct_rate": 50.0,
+    "avg_open_return": -0.028,
+    "avg_high_return": 1.717,
+    "avg_close_return": -1.541
   }
 }
