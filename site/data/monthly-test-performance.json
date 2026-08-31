@@ -1,8 +1,22 @@
 {
-  "updated_for_market_date": "2026-08-28",
+  "updated_for_market_date": "2026-08-31",
   "window_days": 30,
   "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
   "entries": [
+    {
+      "selection_date": "2026-08-28",
+      "measured_date": "2026-08-31",
+      "code": "605337",
+      "name": "李子园",
+      "strategy_id": "recent_limit_up_trend",
+      "selection_close": 9.46,
+      "open_return": 0.0,
+      "high_return": 0.74,
+      "low_return": -1.691,
+      "close_return": -1.374,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
     {
       "selection_date": "2026-08-25",
       "measured_date": "2026-08-28",
@@ -146,6 +160,20 @@
   ],
   "recent_entries": [
     {
+      "selection_date": "2026-08-28",
+      "measured_date": "2026-08-31",
+      "code": "605337",
+      "name": "李子园",
+      "strategy_id": "recent_limit_up_trend",
+      "selection_close": 9.46,
+      "open_return": 0.0,
+      "high_return": 0.74,
+      "low_return": -1.691,
+      "close_return": -1.374,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
+    {
       "selection_date": "2026-08-25",
       "measured_date": "2026-08-28",
       "code": "002607",
@@ -287,11 +315,11 @@
     }
   ],
   "summary": {
-    "settled_trades": 10,
-    "open_positive_rate": 40.0,
-    "high_ge_1pct_rate": 50.0,
-    "avg_open_return": -0.028,
-    "avg_high_return": 1.717,
-    "avg_close_return": -1.541
+    "settled_trades": 11,
+    "open_positive_rate": 36.4,
+    "high_ge_1pct_rate": 45.5,
+    "avg_open_return": -0.026,
+    "avg_high_return": 1.628,
+    "avg_close_return": -1.525
   }
 }
