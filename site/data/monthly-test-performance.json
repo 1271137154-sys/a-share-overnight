@@ -1,8 +1,22 @@
 {
-  "updated_for_market_date": "2026-08-31",
+  "updated_for_market_date": "2026-09-01",
   "window_days": 30,
   "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
   "entries": [
+    {
+      "selection_date": "2026-08-31",
+      "measured_date": "2026-09-01",
+      "code": "002517",
+      "name": "恺英网络",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 17.17,
+      "open_return": 1.573,
+      "high_return": 1.573,
+      "low_return": -1.747,
+      "close_return": -1.165,
+      "open_positive": true,
+      "success_high_ge_1pct": true
+    },
     {
       "selection_date": "2026-08-28",
       "measured_date": "2026-08-31",
@@ -160,6 +174,20 @@
   ],
   "recent_entries": [
     {
+      "selection_date": "2026-08-31",
+      "measured_date": "2026-09-01",
+      "code": "002517",
+      "name": "恺英网络",
+      "strategy_id": "strong_close_momentum",
+      "selection_close": 17.17,
+      "open_return": 1.573,
+      "high_return": 1.573,
+      "low_return": -1.747,
+      "close_return": -1.165,
+      "open_positive": true,
+      "success_high_ge_1pct": true
+    },
+    {
       "selection_date": "2026-08-28",
       "measured_date": "2026-08-31",
       "code": "605337",
@@ -315,11 +343,11 @@
     }
   ],
   "summary": {
-    "settled_trades": 11,
-    "open_positive_rate": 36.4,
-    "high_ge_1pct_rate": 45.5,
-    "avg_open_return": -0.026,
-    "avg_high_return": 1.628,
-    "avg_close_return": -1.525
+    "settled_trades": 12,
+    "open_positive_rate": 41.7,
+    "high_ge_1pct_rate": 50.0,
+    "avg_open_return": 0.107,
+    "avg_high_return": 1.624,
+    "avg_close_return": -1.495
   }
 }
