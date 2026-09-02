@@ -1,8 +1,22 @@
 {
-  "updated_for_market_date": "2026-09-01",
+  "updated_for_market_date": "2026-09-02",
   "window_days": 30,
   "definition": "每日从三套策略各自第一名中选出一只统计样本；成功率为次日最高价较筛选收盘价达到+1%。不代表可成交收益或交易建议。",
   "entries": [
+    {
+      "selection_date": "2026-09-01",
+      "measured_date": "2026-09-02",
+      "code": "002640",
+      "name": "跨境通",
+      "strategy_id": "recent_limit_up_trend",
+      "selection_close": 3.51,
+      "open_return": -0.57,
+      "high_return": -0.285,
+      "low_return": -2.564,
+      "close_return": -1.14,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
     {
       "selection_date": "2026-08-31",
       "measured_date": "2026-09-01",
@@ -174,6 +188,20 @@
   ],
   "recent_entries": [
     {
+      "selection_date": "2026-09-01",
+      "measured_date": "2026-09-02",
+      "code": "002640",
+      "name": "跨境通",
+      "strategy_id": "recent_limit_up_trend",
+      "selection_close": 3.51,
+      "open_return": -0.57,
+      "high_return": -0.285,
+      "low_return": -2.564,
+      "close_return": -1.14,
+      "open_positive": false,
+      "success_high_ge_1pct": false
+    },
+    {
       "selection_date": "2026-08-31",
       "measured_date": "2026-09-01",
       "code": "002517",
@@ -343,11 +371,11 @@
     }
   ],
   "summary": {
-    "settled_trades": 12,
-    "open_positive_rate": 41.7,
-    "high_ge_1pct_rate": 50.0,
-    "avg_open_return": 0.107,
-    "avg_high_return": 1.624,
-    "avg_close_return": -1.495
+    "settled_trades": 13,
+    "open_positive_rate": 38.5,
+    "high_ge_1pct_rate": 46.2,
+    "avg_open_return": 0.055,
+    "avg_high_return": 1.477,
+    "avg_close_return": -1.468
   }
 }
